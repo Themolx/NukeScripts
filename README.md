@@ -1,55 +1,89 @@
-# NukeScripts
-Collection of my scripts that i made to make my life easier
+<a href="https://yourwebsite.com"><img src="https://yourwebsite.com/images/logo.png" alt="Your Logo"></a>
 
+# Sequence Loader for Nuke
 
-"""
-Sequence Loader for Nuke
+Streamline the loading and review process for multiple shot sequences in VFX compositions with **Sequence Loader**, an automated script designed for Nuke.
 
-Overview:
-The Sequence Loader is a Python script designed to automate the process of loading and reviewing multiple shot sequences in Nuke. It enhances efficiency by automating tedious tasks, improving quality control, and simplifying communication between artists and supervisors.
+---
 
-Key Features:
-- Automatic Sequence Detection:
-  - Automatically detects the sequence number from the Nuke script name.
-  - Allows manual input for flexibility.
-  
-- Multi-Sequence Support:
-  - Supports loading multiple sequences in one operation.
-  - Remembers the next logical sequence number for faster iterations.
-  
-- Smart Render Version Detection:
-  - Finds and loads the latest render version for each shot.
-  - Supports both regular and denoise render paths.
-  
-- Dynamic Read Node Creation:
-  - Creates Read nodes with appropriate file paths and frame ranges.
-  - Sets localization policy for efficient file management.
-  
-- Automatic Contact Sheet Generation:
-  - Generates a ContactSheet node to combine all loaded shots.
-  - Adjusts layout dynamically based on the number of shots.
-  
-- Custom Overlay Information:
-  - Adds text overlays to each shot with sequence, shot number, and render type.
-  
-- Flexible Render Type Selection:
-  - Allows choice between compositing and denoise renders.
-  
-- Visual Organization:
-  - Arranges nodes logically in the Node Graph.
-  - Adds labeled backdrops for clarity.
-  
-- User-Friendly Interface:
-  - Provides interactive dialogs for sequence selection and feedback.
+# Table of Contents
+- [Overview](#overview)
+- [Key Features](#key-features)
+  - [Automatic Sequence Detection](#automatic-sequence-detection)
+  - [Multi-Sequence Support](#multi-sequence-support)
+  - [Smart Render Version Detection](#smart-render-version-detection)
+  - [Dynamic Read Node Creation](#dynamic-read-node-creation)
+  - [Automatic Contact Sheet Generation](#automatic-contact-sheet-generation)
+  - [Custom Overlay Information](#custom-overlay-information)
+  - [Flexible Render Type Selection](#flexible-render-type-selection)
+  - [Visual Organization](#visual-organization)
+  - [User-Friendly Interface](#user-friendly-interface)
+- [Technical Implementation](#technical-implementation)
+- [Usage Scenarios](#usage-scenarios)
 
-Technical Implementation:
-- Developed using Python in Nuke's scripting environment.
-- Uses Nuke's file system interaction, node graph manipulation, and UI creation.
-- Employs dynamic node creation, advanced file path handling, and custom UI elements.
+---
 
-Usage Scenarios:
-- Artist Self-Review: Load and review sequences for progress checks.
-- Supervisor Reviews: Efficiently review sequences for approvals or feedback.
-- Team Presentations: Prepare sequences for team discussions.
-- Render Comparisons: Compare compositing and denoise renders easily.
-"""
+## Overview
+**Sequence Loader** is a Python script for Nuke that automates the process of importing and reviewing multiple shot sequences. It improves workflow efficiency, quality control, and communication between artists and supervisors.
+
+---
+
+## Key Features
+
+### Automatic Sequence Detection
+- Detects the current sequence number from the Nuke script name.
+- Supports manual input for flexibility.
+
+### Multi-Sequence Support
+- Load multiple sequences in one operation.
+- Remembers the next sequence number for faster iterations.
+
+### Smart Render Version Detection
+- Automatically loads the latest render version for each shot.
+- Supports both regular compositing and denoise render paths.
+
+### Dynamic Read Node Creation
+- Generates Read nodes for each shot with correct file paths and frame ranges.
+- Automatically sets the localization policy for file management.
+
+### Automatic Contact Sheet Generation
+- Combines all loaded shots into a single ContactSheet node.
+- Dynamically adjusts layout based on the number of shots.
+
+### Custom Overlay Information
+- Adds text overlays for sequence, shot number, and render type on each shot.
+  
+<a href="https://yourwebsite.com/images/sequence_loader_01.png"><img src="https://yourwebsite.com/images/sequence_loader_01.png" alt="Custom Overlay Example"></a>
+
+### Flexible Render Type Selection
+- Choose between compositing and denoise renders depending on your review needs.
+
+### Visual Organization
+- Automatically arranges nodes logically in the Node Graph.
+- Adds labeled backdrops for easy organization.
+
+### User-Friendly Interface
+- Interactive dialogs for sequence selection and configuration.
+- Provides feedback during the loading process.
+
+---
+
+## Technical Implementation
+
+**Sequence Loader** is written in Python, utilizing Nuke's scripting environment. It interacts with the file system, manipulates the Node Graph, and provides a custom user interface for sequence management. It is designed to integrate smoothly into existing Nuke workflows and is customizable to meet specific pipeline requirements.
+
+---
+
+## Usage Scenarios
+
+### Artist Self-Review
+Quickly load and check progress on assigned sequences.
+
+### Supervisor Reviews
+Efficiently review multiple sequences for approval or feedback.
+
+### Team Presentations
+Prepare comprehensive sequence presentations for team discussions.
+
+### Render Comparisons
+Easily compare regular compositing and denoise renders side by side.

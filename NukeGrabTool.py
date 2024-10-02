@@ -1,4 +1,4 @@
-# Nuke Grab Tool v1.3
+# Nuke Grab Tool v2.0
 #
 # This script implements a "grab" tool similar to Blender's functionality.
 # It allows users to move selected nodes by pressing 'E' and moving the mouse,
@@ -11,6 +11,12 @@
 # 4. Left-click or press 'Enter' to confirm the new position
 # 5. Press 'Esc' to cancel the operation
 
+
+
+
+
+
+
 import nuke
 from PySide2 import QtCore, QtGui, QtWidgets
 
@@ -22,20 +28,36 @@ class GrabTool(QtCore.QObject):
         self.selected_nodes = []
         self.original_positions = {}
         self.scale_factor = 1.0
+        self.original_cursor = None
 
     def activate_grab(self):
         self.selected_nodes = nuke.selectedNodes()
         if not self.selected_nodes:
             return  # Silent return if no nodes are selected
-
+        
         self.grab_active = True
         self.original_positions = {node: (node.xpos(), node.ypos()) for node in self.selected_nodes}
         self.start_pos = QtGui.QCursor.pos()
         self.scale_factor = nuke.zoom()
-        QtWidgets.QApplication.instance().installEventFilter(self)
+        
+        # Change cursor to a hand cursor
+        app = QtWidgets.QApplication.instance()
+        self.original_cursor = app.overrideCursor()
+        app.setOverrideCursor(QtGui.QCursor(QtCore.Qt.OpenHandCursor))
+        
+        app.installEventFilter(self)
 
     def deactivate_grab(self):
         self.grab_active = False
+        
+        # Always restore the cursor
+        app = QtWidgets.QApplication.instance()
+        while app.overrideCursor() is not None:
+            app.restoreOverrideCursor()
+        
+        if self.original_cursor:
+            app.setOverrideCursor(self.original_cursor)
+        
         QtWidgets.QApplication.instance().removeEventFilter(self)
 
     def apply_grab(self):
@@ -49,9 +71,12 @@ class GrabTool(QtCore.QObject):
     def eventFilter(self, obj, event):
         if self.grab_active:
             if event.type() == QtCore.QEvent.MouseMove:
+                # Change to closed hand cursor during movement
+                app = QtWidgets.QApplication.instance()
+                app.changeOverrideCursor(QtGui.QCursor(QtCore.Qt.ClosedHandCursor))
                 self.update_positions(event.globalPos())
-            elif event.type() == QtCore.QEvent.MouseButtonPress and event.button() == QtCore.Qt.LeftButton:
-                self.apply_grab()
+            elif event.type() == QtCore.QEvent.MouseButtonRelease and event.button() == QtCore.Qt.LeftButton:
+                self.apply_grab()  # Mouse release ends the grab
             elif event.type() == QtCore.QEvent.KeyPress:
                 if event.key() == QtCore.Qt.Key_Return or event.key() == QtCore.Qt.Key_Enter:
                     self.apply_grab()

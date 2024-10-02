@@ -1,6 +1,30 @@
 #  Custom Nuke Tools - User Guide and Problem-Solving Showcase
 
-As a Technical Director specializing in VFX pipeline optimization, I've developed a suite of custom Nuke tools designed to solve critical workflow challenges and enhance production efficiency. This guide demonstrates my problem-solving approach and provides practical information for users of these tools.
+Hello i am Martin Tomek am Compositor and TD. And i would like to share with world some scripts that makes my life easier while working in Nuke. 
+
+
+# Nuke Grab Tool
+
+## Overview
+I was missing the grab tool functionality from the Blender shading page. So I created this Nuke script, that replicates it in Nuke. It is really handy when zoomed out in the node graph. Just press E and move things around! Made with Claude.
+
+## Key Features
+- Blender-inspired 'grab' functionality
+- Keyboard shortcut activation ('E')
+- Confirm with left-click or Enter, cancel with Esc
+
+## Problem Solved
+Addresses the difficulty of organizing nodes in complex Nuke scripts, especially when zoomed out or working with intricate arrangements.
+
+I was missing the grab tool functionality from the Blender shading page. So I created this Nuke script, that replicates it in Nuke with Claude. It is really handy when zoomed out in the node graph. Just press E and move things around!
+
+
+
+
+
+
+
+
 
 ## 1. Sequence Loader: Streamlining Multi-Shot Reviews
 

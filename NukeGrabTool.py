@@ -13,10 +13,6 @@
 
 
 
-
-
-
-
 import nuke
 from PySide2 import QtCore, QtGui, QtWidgets
 
@@ -29,13 +25,20 @@ class GrabTool(QtCore.QObject):
         self.original_positions = {}
         self.scale_factor = 1.0
         self.original_cursor = None
+        self.locked = False  # Lock mechanism to prevent reactivation during operation
+        self.lock_x = False  # Flag to lock movement to X-axis
+        self.lock_y = False  # Flag to lock movement to Y-axis
 
     def activate_grab(self):
+        if self.locked:  # Prevent new activation if currently active
+            return
+        
         self.selected_nodes = nuke.selectedNodes()
         if not self.selected_nodes:
             return  # Silent return if no nodes are selected
-        
+
         self.grab_active = True
+        self.locked = True  # Lock activation during grab
         self.original_positions = {node: (node.xpos(), node.ypos()) for node in self.selected_nodes}
         self.start_pos = QtGui.QCursor.pos()
         self.scale_factor = nuke.zoom()
@@ -49,12 +52,15 @@ class GrabTool(QtCore.QObject):
 
     def deactivate_grab(self):
         self.grab_active = False
+        self.locked = False  # Unlock after grab operation is completed
+        self.lock_x = False  # Reset axis locks on deactivation
+        self.lock_y = False
         
         # Always restore the cursor
         app = QtWidgets.QApplication.instance()
         while app.overrideCursor() is not None:
             app.restoreOverrideCursor()
-        
+
         if self.original_cursor:
             app.setOverrideCursor(self.original_cursor)
         
@@ -78,10 +84,21 @@ class GrabTool(QtCore.QObject):
             elif event.type() == QtCore.QEvent.MouseButtonRelease and event.button() == QtCore.Qt.LeftButton:
                 self.apply_grab()  # Mouse release ends the grab
             elif event.type() == QtCore.QEvent.KeyPress:
-                if event.key() == QtCore.Qt.Key_Return or event.key() == QtCore.Qt.Key_Enter:
+                # Intercept Z for locking the X-axis, and Y for locking the Y-axis
+                if event.key() == QtCore.Qt.Key_Z:
+                    self.lock_x = True  # Lock X-axis movement
+                    self.lock_y = False  # Ensure Y-axis is unlocked
+                    return True  # Consume the event, preventing further propagation
+                elif event.key() == QtCore.Qt.Key_Y:
+                    self.lock_y = True  # Lock Y-axis movement
+                    self.lock_x = False  # Ensure X-axis is unlocked
+                    return True  # Consume the event, preventing further propagation
+                elif event.key() == QtCore.Qt.Key_Return or event.key() == QtCore.Qt.Key_Enter:
                     self.apply_grab()
+                    return True  # Consume the event
                 elif event.key() == QtCore.Qt.Key_Escape:
                     self.cancel_grab()
+                    return True  # Consume the event
         return False
 
     def update_positions(self, current_pos):
@@ -89,7 +106,13 @@ class GrabTool(QtCore.QObject):
         scaled_offset = QtCore.QPoint(int(offset.x() / self.scale_factor), int(offset.y() / self.scale_factor))
         for node in self.selected_nodes:
             orig_x, orig_y = self.original_positions[node]
-            node.setXYpos(orig_x + scaled_offset.x(), orig_y + scaled_offset.y())
+            # Move only in the X or Y direction based on the lock flags
+            if self.lock_x:
+                node.setXYpos(orig_x + scaled_offset.x(), orig_y)  # Lock Y-axis, move only on X-axis
+            elif self.lock_y:
+                node.setXYpos(orig_x, orig_y + scaled_offset.y())  # Lock X-axis, move only on Y-axis
+            else:
+                node.setXYpos(orig_x + scaled_offset.x(), orig_y + scaled_offset.y())  # Free movement
 
 grab_tool = GrabTool()
 

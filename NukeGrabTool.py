@@ -77,7 +77,7 @@ class AdvancedGrabTool(QtCore.QObject):
 
         self.selected_nodes = nuke.selectedNodes()
         if not self.selected_nodes:
-            nuke.message("Please select a node before activating the grab tool.")
+            #nuke.message("Please select a node before activating the grab tool.")
             return
 
         self.grab_active = True
@@ -194,5 +194,5 @@ def grab_full_tree():
 
 # Add the Grab tool commands to Nuke's menu
 nuke.menu('Nuke').addCommand('Edit/Grab Tool', grab_standard, 'e')
-nuke.menu('Nuke').addCommand('Edit/Grab Input Tree', grab_input_tree, 'alt+ctrl+e')
-nuke.menu('Nuke').addCommand('Edit/Grab Full Tree', grab_full_tree, 'ctrl+e')
+nuke.menu('Nuke').addCommand('Edit/Grab Input Tree', grab_input_tree, 'ctrl+e')
+nuke.menu('Nuke').addCommand('Edit/Grab Full Tree', grab_full_tree, 'alt+ctrl+e')

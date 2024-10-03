@@ -1,49 +1,87 @@
-# Nuke Grab Tool v2.0
+# Nuke Advanced Grab Tool v3.0
 #
-# This script implements a "grab" tool similar to Blender's functionality.
-# It allows users to move selected nodes by pressing 'E' and moving the mouse,
-# without needing to click and drag directly on the nodes.
+# This script implements an advanced grab tool with multiple modes for moving nodes in Nuke.
+#
+# Features:
+# - Standard Grab (E): Moves only selected nodes.
+# - Input Tree Grab (Cmd+Option+E): Moves the selected node and all its upstream nodes.
+# - Full Tree Grab (Cmd+E): Moves the entire connected node tree (upstream and downstream).
 #
 # Usage:
-# 1. Select one or more nodes in Nuke
-# 2. Press 'E' to activate the grab mode
-# 3. Move the mouse to reposition the selected nodes
-# 4. Left-click or press 'Enter' to confirm the new position
-# 5. Press 'Esc' to cancel the operation
-
-
+# 1. Select a node or nodes in Nuke
+# 2. Press 'E' to move only the selected node(s)
+# 3. Press 'Cmd+Option+E' to move the selected node and all its inputs
+# 4. Press 'Cmd+E' to move the entire connected node tree
+# 5. Move the mouse to reposition the nodes
+# 6. Left-click or press 'Enter' to confirm the new position
+# 7. Press 'Esc' to cancel the operation
+# 8. Press 'Z' to lock movement to X-axis, 'Y' to lock movement to Y-axis
 
 import nuke
 from PySide2 import QtCore, QtGui, QtWidgets
 
-class GrabTool(QtCore.QObject):
+class AdvancedGrabTool(QtCore.QObject):
     def __init__(self):
-        super(GrabTool, self).__init__()
+        super(AdvancedGrabTool, self).__init__()
         self.grab_active = False
         self.start_pos = None
         self.selected_nodes = []
+        self.affected_nodes = set()
         self.original_positions = {}
         self.scale_factor = 1.0
         self.original_cursor = None
-        self.locked = False  # Lock mechanism to prevent reactivation during operation
-        self.lock_x = False  # Flag to lock movement to X-axis
-        self.lock_y = False  # Flag to lock movement to Y-axis
+        self.locked = False
+        self.lock_x = False
+        self.lock_y = False
+        self.grab_mode = "standard"
 
-    def activate_grab(self):
-        if self.locked:  # Prevent new activation if currently active
+    def get_upstream_nodes(self, node, upstream=None):
+        if upstream is None:
+            upstream = set()
+        if node not in upstream:
+            upstream.add(node)
+            for i in range(node.inputs()):
+                input_node = node.input(i)
+                if input_node:
+                    self.get_upstream_nodes(input_node, upstream)
+        return upstream
+
+    def get_connected_nodes(self, start_node, connected=None):
+        if connected is None:
+            connected = set()
+        if start_node not in connected:
+            connected.add(start_node)
+            for n in start_node.dependencies():
+                self.get_connected_nodes(n, connected)
+            for n in start_node.dependent():
+                self.get_connected_nodes(n, connected)
+        return connected
+
+    def activate_grab(self, mode="standard"):
+        if self.locked:
             return
-        
+
         self.selected_nodes = nuke.selectedNodes()
         if not self.selected_nodes:
-            return  # Silent return if no nodes are selected
+            nuke.message("Please select a node before activating the grab tool.")
+            return
 
         self.grab_active = True
-        self.locked = True  # Lock activation during grab
-        self.original_positions = {node: (node.xpos(), node.ypos()) for node in self.selected_nodes}
+        self.locked = True
+        self.grab_mode = mode
+
+        if self.grab_mode == "input_tree":
+            self.affected_nodes = self.get_upstream_nodes(self.selected_nodes[0])
+        elif self.grab_mode == "full_tree":
+            self.affected_nodes = self.get_connected_nodes(self.selected_nodes[0])
+        else:  # standard mode
+            self.affected_nodes = set(self.selected_nodes)
+
+        self.original_positions = {node: (node.xpos(), node.ypos()) for node in self.affected_nodes}
+
         self.start_pos = QtGui.QCursor.pos()
         self.scale_factor = nuke.zoom()
         
-        # Change cursor to a hand cursor
         app = QtWidgets.QApplication.instance()
         self.original_cursor = app.overrideCursor()
         app.setOverrideCursor(QtGui.QCursor(QtCore.Qt.OpenHandCursor))
@@ -52,11 +90,12 @@ class GrabTool(QtCore.QObject):
 
     def deactivate_grab(self):
         self.grab_active = False
-        self.locked = False  # Unlock after grab operation is completed
-        self.lock_x = False  # Reset axis locks on deactivation
+        self.locked = False
+        self.lock_x = False
         self.lock_y = False
+        self.grab_mode = "standard"
+        self.affected_nodes.clear()
         
-        # Always restore the cursor
         app = QtWidgets.QApplication.instance()
         while app.overrideCursor() is not None:
             app.restoreOverrideCursor()
@@ -77,47 +116,53 @@ class GrabTool(QtCore.QObject):
     def eventFilter(self, obj, event):
         if self.grab_active:
             if event.type() == QtCore.QEvent.MouseMove:
-                # Change to closed hand cursor during movement
                 app = QtWidgets.QApplication.instance()
                 app.changeOverrideCursor(QtGui.QCursor(QtCore.Qt.ClosedHandCursor))
                 self.update_positions(event.globalPos())
             elif event.type() == QtCore.QEvent.MouseButtonRelease and event.button() == QtCore.Qt.LeftButton:
-                self.apply_grab()  # Mouse release ends the grab
+                self.apply_grab()
             elif event.type() == QtCore.QEvent.KeyPress:
-                # Intercept Z for locking the X-axis, and Y for locking the Y-axis
                 if event.key() == QtCore.Qt.Key_Z:
-                    self.lock_x = True  # Lock X-axis movement
-                    self.lock_y = False  # Ensure Y-axis is unlocked
-                    return True  # Consume the event, preventing further propagation
+                    self.lock_x = True
+                    self.lock_y = False
+                    return True
                 elif event.key() == QtCore.Qt.Key_Y:
-                    self.lock_y = True  # Lock Y-axis movement
-                    self.lock_x = False  # Ensure X-axis is unlocked
-                    return True  # Consume the event, preventing further propagation
+                    self.lock_y = True
+                    self.lock_x = False
+                    return True
                 elif event.key() == QtCore.Qt.Key_Return or event.key() == QtCore.Qt.Key_Enter:
                     self.apply_grab()
-                    return True  # Consume the event
+                    return True
                 elif event.key() == QtCore.Qt.Key_Escape:
                     self.cancel_grab()
-                    return True  # Consume the event
+                    return True
         return False
 
     def update_positions(self, current_pos):
         offset = current_pos - self.start_pos
         scaled_offset = QtCore.QPoint(int(offset.x() / self.scale_factor), int(offset.y() / self.scale_factor))
-        for node in self.selected_nodes:
+        
+        for node in self.affected_nodes:
             orig_x, orig_y = self.original_positions[node]
-            # Move only in the X or Y direction based on the lock flags
             if self.lock_x:
-                node.setXYpos(orig_x + scaled_offset.x(), orig_y)  # Lock Y-axis, move only on X-axis
+                node.setXYpos(orig_x + scaled_offset.x(), orig_y)
             elif self.lock_y:
-                node.setXYpos(orig_x, orig_y + scaled_offset.y())  # Lock X-axis, move only on Y-axis
+                node.setXYpos(orig_x, orig_y + scaled_offset.y())
             else:
-                node.setXYpos(orig_x + scaled_offset.x(), orig_y + scaled_offset.y())  # Free movement
+                node.setXYpos(orig_x + scaled_offset.x(), orig_y + scaled_offset.y())
 
-grab_tool = GrabTool()
+grab_tool = AdvancedGrabTool()
 
-def grab_key_press():
-    grab_tool.activate_grab()
+def grab_standard():
+    grab_tool.activate_grab(mode="standard")
 
-# Add the Grab tool to Nuke's menu
-nuke.menu('Nuke').addCommand('Edit/Grab Tool', grab_key_press, 'e')
+def grab_input_tree():
+    grab_tool.activate_grab(mode="input_tree")
+
+def grab_full_tree():
+    grab_tool.activate_grab(mode="full_tree")
+
+# Add the Grab tool commands to Nuke's menu
+nuke.menu('Nuke').addCommand('Edit/Grab Tool', grab_standard, 'e')
+nuke.menu('Nuke').addCommand('Edit/Grab Input Tree', grab_input_tree, 'ctrl+e')
+nuke.menu('Nuke').addCommand('Edit/Grab Full Tree', grab_full_tree, 'alt+ctrl+e')

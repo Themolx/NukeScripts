@@ -63,7 +63,7 @@ An integrated suite of tools for enhanced node organization and management.
 - **Key Features**:
   - Automatic labeling with input channel
   - Postage stamp activation for non-RGBA shuffles
-  - Special handling for RGBA channels
+  - Automatic keep node for RGBA channels
 
 #### CryptoMatte Tool
 - **Problem Solved**: Unclear labeling and RGBA output issues in CryptoMatte nodes

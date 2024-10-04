@@ -4,7 +4,7 @@ import nuke
 import uuid
 
 # User variable for vertical spacing (in pixels)
-VERTICAL_SPACING = 50  # You can adjust this value as needed
+VERTICAL_SPACING = 10  # You can adjust this value as needed
 
 # Unique identifier for nodes created by this script (hidden from user)
 SCRIPT_ID = str(uuid.uuid4())

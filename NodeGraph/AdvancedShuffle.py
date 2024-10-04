@@ -1,4 +1,4 @@
-# DynamicShuffleLabeler.py v1.7
+# DynamicShuffleLabeler.py v1.8
 
 import nuke
 import uuid
@@ -16,7 +16,7 @@ def is_our_keep_rgba_node(node):
     return (node.Class() == 'Remove' and 
             node['operation'].value() == 'keep' and 
             node['channels'].value() == 'rgba' and
-            SCRIPT_ID in node['label'].value())
+            node.knob('script_id') and node['script_id'].value() == SCRIPT_ID)
 
 def find_our_keep_rgba_node(shuffle_node):
     """
@@ -35,7 +35,14 @@ def create_keep_rgba_node(shuffle_node):
     remove_node = nuke.nodes.Remove()
     remove_node['operation'].setValue('keep')
     remove_node['channels'].setValue('rgba')
-    remove_node['label'].setValue(f"keep [value channels]\n{SCRIPT_ID}")
+    remove_node['label'].setValue("keep [value channels]")
+    
+    # Add a hidden knob to store our script ID
+    script_id_knob = nuke.String_Knob('script_id', 'Script ID')
+    script_id_knob.setFlag(nuke.INVISIBLE)
+    remove_node.addKnob(script_id_knob)
+    remove_node['script_id'].setValue(SCRIPT_ID)
+    
     remove_node.setInput(0, shuffle_node)
     
     # Position the new node
@@ -138,4 +145,4 @@ def initialize_dynamic_shuffle_labeler():
 # Run the initialization process when the script is loaded
 initialize_dynamic_shuffle_labeler()
 
-print(f"Dynamic Shuffle Labeler v1.7 initialized. Vertical spacing set to {VERTICAL_SPACING} pixels.")
+print(f"Dynamic Shuffle Labeler v1.8 initialized. Vertical spacing set to {VERTICAL_SPACING} pixels.")

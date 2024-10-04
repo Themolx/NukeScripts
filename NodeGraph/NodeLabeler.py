@@ -1,113 +1,149 @@
-# AnimatedNodeSaturator.py v1.2.1
+# AnimatedNodeLabeler.py v2.0.0
 #
-# This script increases the saturation of the tile color for all animated nodes in a Nuke script.
-# If a node has any animated knobs, its tile color will turn red and "Animated" will be added to its label.
-# It also adds "Mix: [value mix]" to the label when the mix knob is changed, and removes it when mix is 1.
-# Otherwise, it stays at its default color and label.
+# This script modifies the color of animatable Nuke nodes when they have animated values.
+# It adds labels to indicate if a node is animated and shows the mix value when applicable.
+# The color and label are updated only when a knob becomes animated or unanimated.
+# Nodes where color information can't be retrieved are skipped for color modification.
 
 import nuke
+import colorsys
 
-def update_node_color_and_label(node):
+# User variables
+HUE_CHANGE = 0.02  # Amount to change the hue (0.0 to 1.0)
+SATURATION_CHANGE = 0.5  # Amount to change the saturation (-1.0 to 1.0)
+VALUE_CHANGE = 1  # Amount to change the value/brightness (-1.0 to 1.0)
+
+# List of node classes to exclude from color modification
+EXCLUDED_NODE_CLASSES = ['BackdropNode', 'StickyNote', 'Dot']
+
+def is_valid_node(node):
     """
-    Update the color and label of a single node based on its animation status and mix value.
-    If any of the node's knobs are animated, the tile color will change to red
-    and "Animated" will be added to its label. If the node has a mix knob not equal to 1, its value will be shown in the label.
+    Check if the node is valid and not in the excluded classes.
     """
-    is_animated = False
-    has_mix = 'mix' in node.knobs()
-    
-    # Iterate through all knobs in the node
-    for knob in node.knobs().values():
-        if knob.isAnimated():
-            is_animated = True
-            break
-    
-    # Prepare the label components
-    label_components = []
-    if is_animated:
-        label_components.append("Animated")
-    
-    if has_mix:
-        mix_value = node['mix'].value()
-        if mix_value != 1.0:
-            label_components.append(f"Mix: {mix_value:.2f}")
-    
-    # Get the original label (excluding our additions)
-    original_label = node['label'].value()
-    original_parts = original_label.split('\n')
-    original_label = next((part for part in original_parts if not part.startswith(("Animated", "Mix:"))), "")
-    
-    # Combine all label components
-    if original_label:
-        label_components.append(original_label)
-    new_label = '\n'.join(label_components)
-    
-    # Update the node color and label
-    if is_animated:
-        node['tile_color'].setValue(0xD00000FF)  # Set node's tile color to red (RGBA hexadecimal)
-    else:
-        node['tile_color'].setValue(0)  # Reset tile color to default (no color)
-    
-    node['label'].setValue(new_label)
+    try:
+        return node and node.Class() not in EXCLUDED_NODE_CLASSES
+    except:
+        return False
+
+def modify_node_color(node, is_animated):
+    """
+    Modify the color of a given node if it's animated and not in the excluded list.
+    Preserve custom colors for groups and other nodes.
+    """
+    if not is_valid_node(node):
+        return
+    try:
+        # Get the current node color
+        current_color = node['tile_color'].value()
+        
+        # If the current color is not the default (0), preserve it
+        if current_color != 0:
+            return
+        
+        # Get the default node color, skip if it's unavailable
+        default_color = nuke.defaultNodeColor(node.Class())
+        if default_color is None:
+            return
+        
+        if is_animated:
+            # Extract RGB values
+            r = ((default_color >> 24) & 0xff) / 255.0
+            g = ((default_color >> 16) & 0xff) / 255.0
+            b = ((default_color >> 8) & 0xff) / 255.0
+            
+            # Convert to HSV for color modification
+            h, s, v = colorsys.rgb_to_hsv(r, g, b)
+            h = (h + HUE_CHANGE) % 1.0
+            s = max(0, min(1, s + SATURATION_CHANGE))
+            v = max(0, min(1, v + VALUE_CHANGE))
+            
+            # Convert back to RGB and set the new color
+            r, g, b = colorsys.hsv_to_rgb(h, s, v)
+            new_color = int(r * 255) << 24 | int(g * 255) << 16 | int(b * 255) << 8 | 0xff
+        else:
+            new_color = default_color
+        
+        # Apply the new color
+        node['tile_color'].setValue(new_color)
+    except Exception as e:
+        print(f"Error modifying color for {node.name()}: {str(e)}")
+        # Skipping the color change if an error occurs
+
+def update_node_label(node):
+    """
+    Update the label of a single node based on its animation status and mix value.
+    """
+    if not is_valid_node(node):
+        return False
+
+    try:
+        is_animated = any(knob.isAnimated() for knob in node.knobs().values())
+        has_mix = 'mix' in node.knobs()
+        
+        label_components = []
+        if is_animated:
+            label_components.append("Animated")
+        
+        if has_mix:
+            mix_value = node['mix'].value()
+            if mix_value != 1.0:
+                label_components.append(f"Mix: {mix_value:.2f}")
+        
+        original_label = node['label'].value()
+        original_parts = original_label.split('\n')
+        original_label = next((part for part in original_parts if not part.startswith(("Animated", "Mix:"))), "")
+        
+        if original_label:
+            label_components.append(original_label)
+        new_label = '\n'.join(label_components)
+        
+        node['label'].setValue(new_label)
+        
+        return is_animated
+    except Exception as e:
+        print(f"Error updating label for {node.name()}: {str(e)}")
+        return False
 
 def on_knob_changed():
     """
     Callback function triggered when any knob of a node is changed.
-    Updates the node's color and label dynamically if any of its knobs become animated or if the mix value changes.
+    Updates the node's color and label only if animation status changes.
     """
     node = nuke.thisNode()
-    knob = nuke.thisKnob()
-    
-    # Prevent recursive color/label change if the 'tile_color' or 'label' knob is itself changed
-    if knob.name() in ['tile_color', 'label']:
+    if not is_valid_node(node):
         return
-    
-    update_node_color_and_label(node)
 
-def on_user_create():
-    """
-    Callback function triggered when a user creates a new node.
-    Updates the color and label of the new node based on its animation status and mix value.
-    """
-    node = nuke.thisNode()
-    update_node_color_and_label(node)
+    try:
+        is_animated = update_node_label(node)
+        modify_node_color(node, is_animated)
+    except Exception as e:
+        print(f"Error in on_knob_changed for {node.name()}: {str(e)}")
 
-def setup_callbacks():
+def setup_callback():
     """
-    Set up the necessary callbacks for all existing and future nodes.
-    These callbacks will handle changes to nodes and automatically update their tile colors and labels.
+    Set up the necessary callback for all existing and future nodes.
     """
-    # First, remove any pre-existing callbacks to prevent duplicate triggers
     nuke.removeKnobChanged(on_knob_changed)
-    nuke.removeOnUserCreate(on_user_create)
-    
-    # Add new callback for knob changes across all nodes
     nuke.addKnobChanged(on_knob_changed, nodeClass='*')
-    
-    # Add callback for when new nodes are created by the user
-    nuke.addOnUserCreate(on_user_create, nodeClass='*')
 
 def update_all_existing_nodes():
     """
-    Update the tile color and label of all nodes already present in the current Nuke script.
-    This ensures that existing nodes' colors and labels reflect their animation status and mix value.
+    Update the label and color of all nodes already present in the current Nuke script.
     """
     for node in nuke.allNodes():
-        update_node_color_and_label(node)
+        if is_valid_node(node):
+            try:
+                is_animated = update_node_label(node)
+                modify_node_color(node, is_animated)
+            except Exception as e:
+                print(f"Error updating {node.name()}: {str(e)}")
 
-def initialize_dynamic_coloring():
+def initialize_dynamic_labeling_and_coloring():
     """
-    Initialize the dynamic node coloring and labeling system.
-    This sets up the callbacks and updates the colors and labels of all existing nodes.
+    Initialize the dynamic node labeling and coloring system.
     """
-    setup_callbacks()
+    setup_callback()
     update_all_existing_nodes()
 
 # Run the initialization process when the script is loaded
-initialize_dynamic_coloring()
-
-# Future Update Plans (v1.3):
-# - Implement a user interface to allow customization of the animated node color and label text.
-# - Add an option to toggle the visibility of the "Animated" and "Mix" labels.
-# - Explore the possibility of gradual color changes based on the complexity of animations in the node.
-# - Add support for tracking and displaying values of other commonly used knobs (e.g., 'opacity', 'which').
+initialize_dynamic_labeling_and_coloring()

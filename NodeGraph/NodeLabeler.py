@@ -1,14 +1,15 @@
-# AnimatedNodeLabeler.py v2.0.0
+# AnimatedNodeLabeler.py v2.2.0
 #
 # This script modifies the color of animatable Nuke nodes when they have animated values.
 # It adds labels to indicate if a node is animated and shows the mix value when applicable.
-# The color and label are updated only when a knob becomes animated or unanimated.
-# Nodes where color information can't be retrieved are skipped for color modification.
+# The color and label functionalities can be toggled independently.
 
 import nuke
 import colorsys
 
 # User variables
+ENABLE_DYNAMIC_LABELING = True  # Controls label updates (Animated, Mix)
+ENABLE_COLOR_CHANGES = True    # Controls color changes for animated nodes
 HUE_CHANGE = 0.02  # Amount to change the hue (0.0 to 1.0)
 SATURATION_CHANGE = 0.5  # Amount to change the saturation (-1.0 to 1.0)
 VALUE_CHANGE = 1  # Amount to change the value/brightness (-1.0 to 1.0)
@@ -27,10 +28,10 @@ def is_valid_node(node):
 
 def modify_node_color(node, is_animated):
     """
-    Modify the color of a given node if it's animated and not in the excluded list.
+    Modify the color of a given node if it's animated and color changes are enabled.
     Preserve custom colors for groups and other nodes.
     """
-    if not is_valid_node(node):
+    if not ENABLE_COLOR_CHANGES or not is_valid_node(node):
         return
     try:
         # Get the current node color
@@ -67,13 +68,12 @@ def modify_node_color(node, is_animated):
         node['tile_color'].setValue(new_color)
     except Exception as e:
         print(f"Error modifying color for {node.name()}: {str(e)}")
-        # Skipping the color change if an error occurs
 
 def update_node_label(node):
     """
     Update the label of a single node based on its animation status and mix value.
     """
-    if not is_valid_node(node):
+    if not ENABLE_DYNAMIC_LABELING or not is_valid_node(node):
         return False
 
     try:
@@ -107,15 +107,19 @@ def update_node_label(node):
 def on_knob_changed():
     """
     Callback function triggered when any knob of a node is changed.
-    Updates the node's color and label only if animation status changes.
+    Updates the node's color and/or label based on animation status and enabled functionalities.
     """
+    if not (ENABLE_DYNAMIC_LABELING or ENABLE_COLOR_CHANGES):
+        return
+
     node = nuke.thisNode()
     if not is_valid_node(node):
         return
 
     try:
-        is_animated = update_node_label(node)
-        modify_node_color(node, is_animated)
+        is_animated = update_node_label(node) if ENABLE_DYNAMIC_LABELING else any(knob.isAnimated() for knob in node.knobs().values())
+        if ENABLE_COLOR_CHANGES:
+            modify_node_color(node, is_animated)
     except Exception as e:
         print(f"Error in on_knob_changed for {node.name()}: {str(e)}")
 
@@ -128,22 +132,46 @@ def setup_callback():
 
 def update_all_existing_nodes():
     """
-    Update the label and color of all nodes already present in the current Nuke script.
+    Update the label and/or color of all nodes already present in the current Nuke script.
     """
     for node in nuke.allNodes():
         if is_valid_node(node):
             try:
-                is_animated = update_node_label(node)
-                modify_node_color(node, is_animated)
+                is_animated = update_node_label(node) if ENABLE_DYNAMIC_LABELING else any(knob.isAnimated() for knob in node.knobs().values())
+                if ENABLE_COLOR_CHANGES:
+                    modify_node_color(node, is_animated)
             except Exception as e:
                 print(f"Error updating {node.name()}: {str(e)}")
 
 def initialize_dynamic_labeling_and_coloring():
     """
-    Initialize the dynamic node labeling and coloring system.
+    Initialize the dynamic node labeling and coloring system if either functionality is enabled.
     """
-    setup_callback()
-    update_all_existing_nodes()
+    if ENABLE_DYNAMIC_LABELING or ENABLE_COLOR_CHANGES:
+        setup_callback()
+        update_all_existing_nodes()
+    else:
+        print("Both dynamic labeling and coloring are disabled.")
+
+def toggle_dynamic_labeling():
+    """
+    Toggle the dynamic labeling functionality.
+    """
+    global ENABLE_DYNAMIC_LABELING
+    ENABLE_DYNAMIC_LABELING = not ENABLE_DYNAMIC_LABELING
+    print(f"Dynamic labeling {'enabled' if ENABLE_DYNAMIC_LABELING else 'disabled'}.")
+    initialize_dynamic_labeling_and_coloring()
+
+def toggle_color_changes():
+    """
+    Toggle the color change functionality.
+    """
+    global ENABLE_COLOR_CHANGES
+    ENABLE_COLOR_CHANGES = not ENABLE_COLOR_CHANGES
+    print(f"Color changes {'enabled' if ENABLE_COLOR_CHANGES else 'disabled'}.")
+    initialize_dynamic_labeling_and_coloring()
 
 # Run the initialization process when the script is loaded
 initialize_dynamic_labeling_and_coloring()
+
+# You can call toggle_dynamic_labeling() or toggle_color_changes() to turn each functionality on or off as needed

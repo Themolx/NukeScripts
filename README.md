@@ -11,7 +11,7 @@ By Martin Tomek
   - [5. ZDefocus Controller](#5-zdefocus-controller)
   - [6. Node Management Suite](#6-node-management-suite)
     - [Dynamic Shuffle Labeler](#dynamic-shuffle-labeler)
-    - [CryptoMatte Tool](#cryptomatte-tool)
+    - [CryptoMatte Tool](#crypto-label-tool)
     - [Animated Node Labeler](#animated-node-labeler)
 - [Installation](#installation)
 - [Conclusion](#conclusion)
@@ -65,7 +65,7 @@ An integrated suite of tools for enhanced node organization and management.
   - Postage stamp activation for non-RGBA shuffles
   - Automatic keep node for RGBA channels
 
-#### CryptoMatte Tool
+#### CryptoLabel Tool
 - **Problem Solved**: Unclear labeling and RGBA output issues in CryptoMatte nodes
 - **Key Features**:
   - Dynamic labeling with layer and matte information

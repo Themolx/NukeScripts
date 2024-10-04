@@ -1,4 +1,4 @@
-# DynamicShuffleLabeler.py v1.8
+# DynamicShuffleLabeler.py v2.0
 
 import nuke
 import uuid
@@ -9,53 +9,27 @@ VERTICAL_SPACING = 10  # You can adjust this value as needed
 # Unique identifier for nodes created by this script (hidden from user)
 SCRIPT_ID = str(uuid.uuid4())
 
-def is_our_keep_rgba_node(node):
+def is_keep_rgba_node(node):
     """
-    Check if the given node is a Remove node created by this script.
+    Check if the given node is a Remove node set to keep rgb or rgba channels.
     """
     return (node.Class() == 'Remove' and 
             node['operation'].value() == 'keep' and 
-            node['channels'].value() == 'rgba' and
-            node.knob('script_id') and node['script_id'].value() == SCRIPT_ID)
+            node['channels'].value() in ['rgba', 'rgb'])
 
-def find_our_keep_rgba_node(shuffle_node):
+def find_keep_rgba_node(shuffle_node):
     """
-    Find an existing KeepRGBA node connected to the given Shuffle node and created by this script.
+    Find an existing KeepRGBA node connected to the given Shuffle node.
     """
     for dep in shuffle_node.dependent():
-        if is_our_keep_rgba_node(dep) and dep.input(0) == shuffle_node:
+        if is_keep_rgba_node(dep) and dep.input(0) == shuffle_node:
             return dep
     return None
-
-def create_keep_rgba_node(shuffle_node):
-    """
-    Create a Remove node set to "keep rgba" after the given Shuffle or Shuffle2 node.
-    Position it VERTICAL_SPACING pixels lower than the Shuffle node.
-    """
-    remove_node = nuke.nodes.Remove()
-    remove_node['operation'].setValue('keep')
-    remove_node['channels'].setValue('rgba')
-    remove_node['label'].setValue("keep [value channels]")
-    
-    # Add a hidden knob to store our script ID
-    script_id_knob = nuke.String_Knob('script_id', 'Script ID')
-    script_id_knob.setFlag(nuke.INVISIBLE)
-    remove_node.addKnob(script_id_knob)
-    remove_node['script_id'].setValue(SCRIPT_ID)
-    
-    remove_node.setInput(0, shuffle_node)
-    
-    # Position the new node
-    x = shuffle_node.xpos()
-    y = shuffle_node.ypos() + shuffle_node.screenHeight() + VERTICAL_SPACING
-    remove_node.setXYpos(x, y)
-    
-    return remove_node
 
 def update_shuffle_node(node):
     """
     Update the label and postage stamp of a Shuffle or Shuffle2 node based on its input.
-    Only add a label if the input is not 'rgba'. Also add a Remove node if necessary.
+    Only add a label if the input is not 'rgba'.
     """
     if node.Class() in ['Shuffle', 'Shuffle2']:
         # Get the input value
@@ -69,29 +43,10 @@ def update_shuffle_node(node):
             node['label'].setValue('[value in1]')
             node['postage_stamp'].setValue(True)
             print(f"Updated {node.name()}: Label set to '[value in1]', postage stamp turned on (in1: {in1_value})")
-            
-            # Check for existing KeepRGBA node created by this script
-            our_keep_rgba = find_our_keep_rgba_node(node)
-            
-            if not our_keep_rgba:
-                keep_rgba_node = create_keep_rgba_node(node)
-                print(f"Added KeepRGBA node after {node.name()}")
-            else:
-                # Update position of existing Remove node
-                x = node.xpos()
-                y = node.ypos() + node.screenHeight() + VERTICAL_SPACING
-                our_keep_rgba.setXYpos(x, y)
-            
         else:
             node['label'].setValue('')  # Clear the label if input is 'rgba'
             node['postage_stamp'].setValue(False)
             print(f"Updated {node.name()}: Label cleared, postage stamp turned off (in1: rgba)")
-            
-            # Remove our KeepRGBA node if it exists
-            our_keep_rgba = find_our_keep_rgba_node(node)
-            if our_keep_rgba:
-                nuke.delete(our_keep_rgba)
-                print(f"Removed our KeepRGBA node after {node.name()}")
 
 def on_user_create():
     """
@@ -145,4 +100,4 @@ def initialize_dynamic_shuffle_labeler():
 # Run the initialization process when the script is loaded
 initialize_dynamic_shuffle_labeler()
 
-print(f"Dynamic Shuffle Labeler v1.8 initialized. Vertical spacing set to {VERTICAL_SPACING} pixels.")
+print(f"Dynamic Shuffle Labeler v2.0 initialized. Vertical spacing set to {VERTICAL_SPACING} pixels.")

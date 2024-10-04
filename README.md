@@ -26,7 +26,7 @@ I was missing the grab tool functionality from the Blender shading page. So I cr
 
 
 
-## 1. Sequence Loader: Streamlining Multi-Shot Reviews
+## 1. Sequence Loader
 
 ### Problem Solved
 Artists and supervisors were spending excessive time manually importing and arranging shots for review, leading to inefficient workflows and increased risk of errors.
@@ -42,20 +42,7 @@ The Sequence Loader automates the process of loading and arranging multiple shot
 - **Multi-Sequence Support**: 
   - Usage: Load multiple sequences in a single operation.
   - User Tip: The tool remembers and suggests the next logical sequence number for quick iterations.
-
-- **Smart Render Version Detection**:
-  - Usage: Automatically finds and loads the latest render version for each shot.
-  - User Tip: Supports both regular compositing and denoise render paths.
-
-- **Dynamic Contact Sheet Generation**:
-  - Usage: Creates a ContactSheet node combining all loaded shots.
-  - User Tip: The layout dynamically adjusts based on the number of loaded shots.
-
-### Impact
-- Reduced shot setup time by 80%
-- Minimized the risk of reviewing outdated versions
-- Improved communication between artists and supervisors
-
+ 
 ### User Benefits
 - Significant time savings in review preparation
 - Reduced cognitive load when dealing with multiple sequences
@@ -67,34 +54,20 @@ The Sequence Loader automates the process of loading and arranging multiple shot
 Manual inspection of mask channels was time-consuming and prone to human error, potentially leading to costly mistakes in final compositions.
 
 ### Solution Overview
-The Mask Checker automates the process of verifying and visualizing mask channels in VFX compositions.
-
-### Key Features and Usage
-- **Automatic Mask Channel Detection**: 
-  - Usage: Scans the selected node for all available '.mask' channels.
-  - User Tip: Works with various types of render passes and compositing setups.
-
-- **Automated Shuffle Node Creation**: 
-  - Usage: Generates Shuffle nodes for each detected mask channel.
-  - User Tip: Ensures clear separation and visibility of individual mask elements.
+The Mask Checker automates the process of verifying and visualizing mask channels 
 
 - **Grade Node Integration**: 
   - Usage: Applies a Grade node to each shuffled mask for enhanced visibility.
   - User Tip: Easily adjust mask intensity for better visualization.
 
-- **Visual Organization**: 
-  - Usage: Creates a structured node tree for all mask channels.
-  - User Tip: Improves node graph readability and organization.
-
 ### Impact
-- Reduced mask checking time by 75%
+- Reduced mask checking time
 - Significantly decreased mask-related errors in final renders
 - Standardized the QC process across the studio
 
 ### User Benefits
 - Faster and more thorough mask verification
 - Reduced risk of overlooking errors in complex, multi-channel renders
-- Consistent mask checking process across different artists
 
 ## 3. Lock Cryptos: Mitigating Critical Bugs
 
@@ -122,18 +95,13 @@ Lock Cryptos automates the locking and labeling of Cryptomatte nodes to prevent 
 - Saved countless hours of troubleshooting and error correction
 - Improved overall render accuracy and artist confidence
 
-### User Benefits
-- Ensures consistent and correct Cryptomatte usage across all stages of production
-- Reduces time spent on Cryptomatte troubleshooting
-- Improves overall composition reliability
-
 ## 4. ZDefocus Controller: Enhancing Depth of Field Workflows
 
 ### Problem Solved
 Managing multiple defocus nodes across complex compositions was leading to inconsistencies and time-consuming setups.
 
 ### Solution Overview
-The ZDefocus Controller centralizes the management of multiple PxF_ZDefocusHERO nodes in complex VFX compositions.
+The ZDefocus Controller centralizes the management of multiple PxF_ZDefocusHERO nodes
 
 ### Key Features and Usage
 - **Centralized Control**: 
@@ -142,25 +110,19 @@ The ZDefocus Controller centralizes the management of multiple PxF_ZDefocusHERO 
 
 - **Automatic Camera Integration**: 
   - Usage: Reads and applies camera data to defocus settings automatically.
-  - User Tip: Ensures accuracy and consistency with the shot's camera properties.
 
 - **Render Farm Compatibility**: 
   - Usage: Utilizes Nuke's 'executing' flag to ensure defocus nodes are always active during farm rendering.
-  - User Tip: Eliminates discrepancies between local and farm renders.
 
 ### Impact
-- Reduced defocus setup time by 60%
+- Reduced defocus setup time 
 - Minimized depth-of-field calculation errors
 - Improved overall composition quality and consistency
 
-### User Benefits
-- Simplified management of complex depth-of-field effects
-- Increased consistency in defocus application across shots
-- Reduced risk of render errors due to mismatched camera data
 
 ## Installation and Setup
 
-1. Download the tools package from our internal pipeline repository.
+1. Download the tools package 
 2. Place the scripts in your Nuke plugins directory (e.g., `~/.nuke` or a studio-wide location).
 3. Add the following line to your `init.py` file:
    ```python

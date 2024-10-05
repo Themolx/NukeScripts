@@ -1,143 +1,139 @@
-"""
-ZDefocus Controller Script for Nuke - v16
-
-This script creates or updates a centralized controller for all PxF_ZDefocusHERO nodes in a Nuke script.
-It initializes the controller with camera values (except for focal plane) and sets all ZDefocus nodes to match the template.
-The reset button updates camera values without changing the focal plane and without showing a dialog.
-The link nodes button reconnects and standardizes all ZDefocus nodes.
-
-Last updated: 2023-10-02
-"""
-
 import nuke
+import nukescripts
+from PySide2 import QtWidgets, QtCore, QtGui
 
-def find_camera_hero():
-    return next((n for n in nuke.allNodes() if n.Class() == "Camera2" and "CameraHERO" in n.name()), None)
+class ZDefocusControllerWidget(QtWidgets.QWidget):
+    def __init__(self, parent=None):
+        super(ZDefocusControllerWidget, self).__init__(parent)
+        self.initUI()
 
-def get_camera_values():
-    camera_hero = find_camera_hero()
-    if camera_hero:
-        return {
-            'focalLength': camera_hero['focal'].value() if 'focal' in camera_hero.knobs() else 32,
-            'fstop': camera_hero['fstop'].value() if 'fstop' in camera_hero.knobs() else 5.6
-        }
-    return {'focalLength': 32, 'fstop': 5.6}  # Default values
+    def initUI(self):
+        layout = QtWidgets.QVBoxLayout()
+        self.setLayout(layout)
 
-def reset_controller_values():
-    controller = nuke.toNode('PxF_ZDefocusHERO_Controller')
-    camera_values = get_camera_values()
-    if controller:
-        for knob, value in camera_values.items():
-            if knob in controller.knobs():
-                controller[knob].setValue(value)
-        # Note: We're not updating the FocalPlane value here
+        # Controls
+        self.focal_plane = self.addSlider("Focal Plane", 0, 1000, 100)
+        self.fstop = self.addSlider("F-Stop", 0.1, 32, 5.6)
+        self.focal_length = self.addSlider("Focal Length", 15, 300, 50)
 
-def link_zdefocus_nodes():
-    controller = nuke.toNode('PxF_ZDefocusHERO_Controller')
-    if not controller:
-        nuke.message("Controller not found. Please create the controller first.")
-        return
+        # Buttons
+        button_layout = QtWidgets.QHBoxLayout()
+        self.link_button = QtWidgets.QPushButton("Link Nodes")
+        self.link_button.clicked.connect(self.link_nodes)
+        button_layout.addWidget(self.link_button)
 
-    zdefocus_nodes = [n for n in nuke.allNodes() if 'PxF_ZDefocus' in n.name()]
-    for node in zdefocus_nodes:
-        if not node.name().endswith('HERO'):
-            node.setName(node.name() + 'HERO')
+        self.reset_button = QtWidgets.QPushButton("Reset to Camera")
+        self.reset_button.clicked.connect(self.reset_to_camera)
+        button_layout.addWidget(self.reset_button)
 
-    template_values = {
-        'filter': 'bokeh',
-        'useGPU': True,
-        'resolution': '1:1',
-        'controlChannel': 'depth.Z',
-        'depthStyle': 'Real',
-        'autofocus': (100, 100),
-        'size': 15,
-        'maxSize': 200,
-        'aspect': 1,
-        'mix': 1,
-        'enableSim': True,
-        'units': 'cm',
-        'filmBack': 36,
-        'viewKernel': False,
-        'ringWidth': 0.25,
-        'enableNoise': True,
-        'noiseSize': 35,
-        'noiseGain': 0.85,
-        'noiseGamma': 0.85,
-        'noiseMix': 0.33,
-        'chromaAbEnable': True,
-        'chromaAbScale': 1.02,
-        'filterChannel': 'rgb colour'
-    }
-    
-    for node in zdefocus_nodes:
-        node['disable'].setExpression('[if {[python not nuke.executing()]} {return [value PxF_ZDefocusHERO_Controller.disable_all]} {return 0}]')
+        layout.addLayout(button_layout)
+
+        # Results area
+        self.results_text = QtWidgets.QTextEdit()
+        self.results_text.setReadOnly(True)
+        layout.addWidget(self.results_text)
+
+        # Diagnostics button
+        self.diag_button = QtWidgets.QPushButton("Run Diagnostics")
+        self.diag_button.clicked.connect(self.run_diagnostics)
+        layout.addWidget(self.diag_button)
+
+    def addSlider(self, label, min_val, max_val, default_val):
+        group = QtWidgets.QGroupBox(label)
+        layout = QtWidgets.QHBoxLayout()
+        slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        slider.setRange(int(min_val * 10), int(max_val * 10))
+        slider.setValue(int(default_val * 10))
+        spin_box = QtWidgets.QDoubleSpinBox()
+        spin_box.setRange(min_val, max_val)
+        spin_box.setValue(default_val)
+        spin_box.setSingleStep(0.1)
         
-        for knob, value in template_values.items():
-            if knob in node.knobs():
-                node[knob].setValue(value)
+        slider.valueChanged.connect(lambda: spin_box.setValue(slider.value() / 10))
+        slider.valueChanged.connect(lambda: self.update_nodes(label, slider.value() / 10))
+        spin_box.valueChanged.connect(lambda: slider.setValue(int(spin_box.value() * 10)))
+        spin_box.valueChanged.connect(lambda: self.update_nodes(label, spin_box.value()))
         
-        for knob, expression in [
-            ('focalDistance', 'PxF_ZDefocusHERO_Controller.FocalPlane'),
-            ('fStop', 'PxF_ZDefocusHERO_Controller.fstop'),
-            ('focalLength', 'PxF_ZDefocusHERO_Controller.focalLength')
-        ]:
-            if knob in node.knobs():
-                node[knob].setExpression(expression)
-    
-    nuke.message(f"{len(zdefocus_nodes)} ZDefocus nodes connected, renamed, and standardized with 'bokeh' filter.")
+        layout.addWidget(slider)
+        layout.addWidget(spin_box)
+        group.setLayout(layout)
+        self.layout().addWidget(group)
+        return spin_box
 
-def create_zdefocus_controller():
-    existing_controller = nuke.toNode('PxF_ZDefocusHERO_Controller')
-    if existing_controller:
-        nuke.delete(existing_controller)
+    def update_nodes(self, label, value):
+        for node in self.find_zdefocus_nodes():
+            if label == "Focal Plane":
+                node['focalDistance'].setValue(value)
+            elif label == "F-Stop":
+                node['fStop'].setValue(value)
+            elif label == "Focal Length":
+                node['focalLength'].setValue(value)
 
-    zdefocus_nodes = [n for n in nuke.allNodes() if 'PxF_ZDefocus' in n.name()]
-    if not zdefocus_nodes or not nuke.toNode('PFX_Write_MAIN'):
-        nuke.message("Required nodes not found. Controller not created.")
-        return
+    def find_zdefocus_nodes(self):
+        return [n for n in nuke.allNodes() if n.Class() == "PxF_ZDefocus"]
 
-    camera_values = get_camera_values()
-    controller = nuke.nodes.PostageStamp(name='PxF_ZDefocusHERO_Controller', note_font_size=40, hide_input=True)
-    
-    for knob_name, knob_label, knob_range in [
-        ('disable_all', 'Disable All PxF_ZDefocusHERO', None),
-        ('FocalPlane', 'Focal Plane', (0, 1000)),
-        ('fstop', 'F-Stop', (0.1, 32)),
-        ('focalLength', 'Focal Length', (15, 300))
-    ]:
-        knob = nuke.Boolean_Knob(knob_name, knob_label) if knob_name == 'disable_all' else nuke.Double_Knob(knob_name, knob_label)
-        if knob_range:
-            knob.setRange(*knob_range)
-        controller.addKnob(knob)
-        if knob_name in camera_values:
-            knob.setValue(camera_values[knob_name])
-        elif knob_name == 'disable_all':
-            knob.setValue(False)
-        elif knob_name == 'FocalPlane':
-            knob.setValue(100)  # Default value for FocalPlane
+    def link_nodes(self):
+        nodes = self.find_zdefocus_nodes()
+        if not nodes:
+            self.results_text.setText("No PxF_ZDefocus nodes found.")
+            return
+        
+        for node in nodes:
+            node['focalDistance'].setExpression(f"{self.focal_plane.value()}")
+            node['fStop'].setExpression(f"{self.fstop.value()}")
+            node['focalLength'].setExpression(f"{self.focal_length.value()}")
+        
+        self.results_text.setText(f"Linked {len(nodes)} PxF_ZDefocus nodes.")
 
-    controller.addKnob(nuke.PyScript_Knob('reset', 'Reset to Camera Values', 'reset_controller_values()'))
-    controller.addKnob(nuke.PyScript_Knob('link_nodes', 'Link Nodes', 'link_zdefocus_nodes()'))
-    
-    controller['knobChanged'].setValue("""
-n = nuke.thisNode()
-k = nuke.thisKnob()
-if k.name() == "disable_all":
-    n['tile_color'].setValue(int(0xffff00ff) if k.value() else int(0x00ff00ff))
-    n['label'].setValue("Disabled" if k.value() else "Enabled")
-""")
-    controller['tile_color'].setValue(int(0x00ff00ff))
-    controller['label'].setValue("Enabled")
-    
-    link_zdefocus_nodes()
-    
-    write_node = nuke.toNode('PFX_Write_MAIN')
-    controller.setXYpos(write_node.xpos() - 1000, write_node.ypos())
-    
-    backdrop = nuke.nodes.BackdropNode(label="Controller", note_font_size=42, tile_color=int(0xaaaaaaff), bdwidth=200, bdheight=200)
-    backdrop.setXYpos(controller.xpos() - 50, controller.ypos() - 50)
-    
-    nuke.message(f"Created controller with camera values. {len(zdefocus_nodes)} ZDefocus nodes connected, renamed, and standardized with 'bokeh' filter.")
+    def reset_to_camera(self):
+        camera = next((n for n in nuke.allNodes() if n.Class() == "Camera2" and "CameraHERO" in n.name()), None)
+        if camera:
+            self.focal_length.setValue(camera['focal'].value())
+            self.fstop.setValue(camera['fstop'].value())
+            self.results_text.setText("Reset values from CameraHERO.")
+        else:
+            self.results_text.setText("CameraHERO not found.")
+
+    def run_diagnostics(self):
+        nodes = self.find_zdefocus_nodes()
+        if not nodes:
+            self.results_text.setText("No PxF_ZDefocus nodes found.")
+            return
+
+        inconsistencies = []
+        for knob in ['focalDistance', 'fStop', 'focalLength']:
+            values = set(node[knob].value() for node in nodes)
+            if len(values) > 1:
+                inconsistencies.append(f"{knob}: {', '.join(map(str, values))}")
+
+        if inconsistencies:
+            self.results_text.setText("Inconsistencies found:\n" + "\n".join(inconsistencies))
+        else:
+            self.results_text.setText("All PxF_ZDefocus nodes have consistent values.")
+
+class ZDefocusControllerPanel(nukescripts.PythonPanel):
+    def __init__(self):
+        nukescripts.PythonPanel.__init__(self, 'PxF_ZDefocus Controller', 'com.yourname.PxFZDefocusController')
+        self.setMinimumSize(400, 500)
+        
+        # Create Qt widget and embed it in a knob
+        self.custom_widget = ZDefocusControllerWidget()
+        self.custom_knob = nuke.PyCustom_Knob("custom_knob", "", "")
+        self.custom_knob.setCustom(self.custom_widget)
+        self.addKnob(self.custom_knob)
+
+    def showModalDialog(self):
+        result = nukescripts.PythonPanel.showModalDialog(self)
+        return result
+
+def show_zdefocus_controller():
+    global zdefocus_panel
+    zdefocus_panel = ZDefocusControllerPanel()
+    zdefocus_panel.show()
+
+# Add menu item
+nuke.menu('Pane').addCommand('PxF_ZDefocus Controller', show_zdefocus_controller)
+nukescripts.registerPanel('com.yourname.PxFZDefocusController', show_zdefocus_controller)
 
 # Run the script
-create_zdefocus_controller()
+show_zdefocus_controller()

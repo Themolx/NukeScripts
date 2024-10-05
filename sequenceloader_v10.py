@@ -43,7 +43,7 @@ def get_shot_numbers(sequence):
     return [f"{sequence}_{i:04d}" for i in range(10, 1000, 10)]
 
 def find_latest_render(sequence, shot, task_type):
-    base_path = f"Y:/20105_Pysna_film/out/FILM/SQ{sequence}/SH{shot}/{'compositing_denoise' if task_type == 'denoise' else 'compositing'}/render/"
+    base_path = f"Y://out//SQ{sequence}/SH{shot}/{'compositing_denoise' if task_type == 'denoise' else 'compositing'}/render/"
     if not os.path.exists(base_path):
         return None
     versions = [d for d in os.listdir(base_path) if d.startswith('v')]

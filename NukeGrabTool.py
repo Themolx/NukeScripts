@@ -31,7 +31,7 @@ from PySide2 import QtCore, QtGui, QtWidgets
 KEEP_NODES_SELECTED = True
 
 # Constant for the speed multiplier when middle mouse button or Alt + Left click is held
-SLOW_SPEED_MULTIPLIER = 0.2
+SLOW_SPEED_MULTIPLIER = 0
 
 class AdvancedGrabTool(QtCore.QObject):
     def __init__(self):

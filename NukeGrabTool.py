@@ -1,4 +1,4 @@
-# Nuke Advanced Grab Tool v3.7
+# Nuke Advanced Grab Tool v3.8
 #
 # This script implements an advanced grab tool to mimic Nuke's native node movement behavior.
 #
@@ -7,9 +7,9 @@
 # - Input Tree Grab (Cmd+Option+E): Moves the selected node and all its upstream nodes.
 # - Full Tree Grab (Cmd+E): Moves the entire connected node tree (upstream and downstream).
 # - Exit grab mode by pressing 'E' again
-# - Option to keep nodes selected after exiting grab mode (controlled by user variable)
-# - Undo functionality (Ctrl+Z or Cmd+Z)
-# - Middle mouse button or Alt + Left click decreases movement speed
+# - Option to keep nodes selected after exiting grab mode
+# - Proper handling of zoom levels for consistent movement speed
+# - Middle mouse button or Alt + Left click freezes movement without changing position on release
 #
 # Usage:
 # 1. Select a node or nodes in Nuke
@@ -17,21 +17,16 @@
 # 3. Press 'Cmd+Option+E' to move the selected node and all its inputs
 # 4. Press 'Cmd+E' to move the entire connected node tree
 # 5. Move the mouse to reposition the nodes
-# 6. Hold middle mouse button or Alt + Left click to decrease movement speed
+# 6. Hold middle mouse button or Alt + Left click to freeze movement
 # 7. Left-click, press 'Enter', or press 'E' again to confirm the new position
 # 8. Press 'Esc' to cancel the operation
 # 9. Press 'Z' to lock movement to X-axis, 'Y' to lock movement to Y-axis
-# 10. Use Ctrl+Z (or Cmd+Z on Mac) to undo the grab operation
 
 import nuke
 from PySide2 import QtCore, QtGui, QtWidgets
 
 # User variable to control whether nodes remain selected after grab mode
-# Note: Disabling this may be better for non-commercial versions of Nuke
 KEEP_NODES_SELECTED = True
-
-# Constant for the speed multiplier when middle mouse button or Alt + Left click is held
-SLOW_SPEED_MULTIPLIER = 0
 
 class AdvancedGrabTool(QtCore.QObject):
     def __init__(self):
@@ -42,14 +37,13 @@ class AdvancedGrabTool(QtCore.QObject):
         self.selected_nodes = []
         self.affected_nodes = set()
         self.original_positions = {}
-        self.scale_factor = 1.0
+        self.current_positions = {}
         self.original_cursor = None
         self.locked = False
         self.lock_x = False
         self.lock_y = False
         self.grab_mode = "standard"
-        self.undo_created = False
-        self.slow_move_active = False
+        self.freeze_movement = False
         self.alt_pressed = False
 
     def get_input_tree(self, node, upstream=None):
@@ -72,11 +66,9 @@ class AdvancedGrabTool(QtCore.QObject):
             if node not in connected:
                 connected.add(node)
                 
-                # Add all inputs (dependencies)
                 inputs = node.dependencies(nuke.INPUTS | nuke.HIDDEN_INPUTS)
                 to_process.extend([n for n in inputs if n not in connected])
                 
-                # Add all outputs (dependents)
                 outputs = node.dependent(nuke.INPUTS | nuke.HIDDEN_INPUTS)
                 to_process.extend([n for n in outputs if n not in connected])
         
@@ -106,10 +98,10 @@ class AdvancedGrabTool(QtCore.QObject):
             self.affected_nodes = set(self.selected_nodes)
 
         self.original_positions = {node: (node.xpos(), node.ypos()) for node in self.affected_nodes}
+        self.current_positions = self.original_positions.copy()
 
         self.start_pos = QtGui.QCursor.pos()
         self.last_pos = self.start_pos
-        self.scale_factor = nuke.zoom()
         
         app = QtWidgets.QApplication.instance()
         self.original_cursor = app.overrideCursor()
@@ -117,9 +109,7 @@ class AdvancedGrabTool(QtCore.QObject):
         
         app.installEventFilter(self)
 
-        # Create undo point at the start of grab
         nuke.Undo().begin("Grab Tool")
-        self.undo_created = True
 
     def deactivate_grab(self):
         self.grab_active = False
@@ -127,9 +117,9 @@ class AdvancedGrabTool(QtCore.QObject):
         self.lock_x = False
         self.lock_y = False
         self.grab_mode = "standard"
-        self.slow_move_active = False
-        self.alt_pressed = False
+        self.freeze_movement = False
         self.last_pos = None
+        self.alt_pressed = False
         
         app = QtWidgets.QApplication.instance()
         while app.overrideCursor() is not None:
@@ -140,21 +130,17 @@ class AdvancedGrabTool(QtCore.QObject):
         
         QtWidgets.QApplication.instance().removeEventFilter(self)
 
-        # Keep nodes selected if the user variable is set to True
         if not KEEP_NODES_SELECTED:
             for node in self.affected_nodes:
                 node.setSelected(False)
         
         self.affected_nodes.clear()
 
-        # End undo group
-        if self.undo_created:
-            nuke.Undo().end()
-            self.undo_created = False
+        nuke.Undo().end()
 
     def apply_grab(self):
-        for node in self.affected_nodes:
-            node.setXYpos(node.xpos(), node.ypos())
+        for node, (x, y) in self.current_positions.items():
+            node.setXYpos(int(x), int(y))
         self.deactivate_grab()
 
     def cancel_grab(self):
@@ -167,23 +153,18 @@ class AdvancedGrabTool(QtCore.QObject):
             if event.type() == QtCore.QEvent.MouseMove:
                 app = QtWidgets.QApplication.instance()
                 app.changeOverrideCursor(QtGui.QCursor(QtCore.Qt.ClosedHandCursor))
-                self.update_positions(event.globalPos())
+                if not self.freeze_movement:
+                    self.update_positions(event.globalPos())
             elif event.type() == QtCore.QEvent.MouseButtonPress:
                 if event.button() == QtCore.Qt.MiddleButton:
-                    self.slow_move_active = True
-                    self.last_pos = event.globalPos()
+                    self.freeze_movement = True
                 elif event.button() == QtCore.Qt.LeftButton and self.alt_pressed:
-                    self.slow_move_active = True
-                    self.last_pos = event.globalPos()
+                    self.freeze_movement = True
             elif event.type() == QtCore.QEvent.MouseButtonRelease:
-                if event.button() == QtCore.Qt.LeftButton:
-                    if not self.alt_pressed:
-                        self.apply_grab()
-                    else:
-                        self.slow_move_active = False
-                        self.last_pos = event.globalPos()
-                elif event.button() == QtCore.Qt.MiddleButton:
-                    self.slow_move_active = False
+                if event.button() == QtCore.Qt.LeftButton and not self.alt_pressed:
+                    self.apply_grab()
+                elif event.button() == QtCore.Qt.MiddleButton or (event.button() == QtCore.Qt.LeftButton and self.alt_pressed):
+                    self.freeze_movement = False
                     self.last_pos = event.globalPos()
             elif event.type() == QtCore.QEvent.KeyPress:
                 if event.key() == QtCore.Qt.Key_Alt:
@@ -208,7 +189,9 @@ class AdvancedGrabTool(QtCore.QObject):
             elif event.type() == QtCore.QEvent.KeyRelease:
                 if event.key() == QtCore.Qt.Key_Alt:
                     self.alt_pressed = False
-                    self.slow_move_active = False
+                    if self.freeze_movement:
+                        self.freeze_movement = False
+                        self.last_pos = QtGui.QCursor.pos()
         return False
 
     def update_positions(self, current_pos):
@@ -216,20 +199,27 @@ class AdvancedGrabTool(QtCore.QObject):
             self.last_pos = self.start_pos
 
         offset = current_pos - self.last_pos
-        scaled_offset = QtCore.QPoint(int(offset.x() / self.scale_factor), int(offset.y() / self.scale_factor))
         
-        # Apply speed multiplier if slow move is active
-        if self.slow_move_active:
-            scaled_offset *= SLOW_SPEED_MULTIPLIER
+        # Get the current zoom level
+        zoom = nuke.zoom()
+        
+        # Apply zoom-adjusted scaling
+        scaled_offset = QtCore.QPointF(offset.x() / zoom, offset.y() / zoom)
         
         for node in self.affected_nodes:
-            current_x, current_y = node.xpos(), node.ypos()
+            current_x, current_y = self.current_positions[node]
             if self.lock_x:
-                node.setXYpos(current_x + scaled_offset.x(), current_y)
+                new_x = current_x + scaled_offset.x()
+                new_y = current_y
             elif self.lock_y:
-                node.setXYpos(current_x, current_y + scaled_offset.y())
+                new_x = current_x
+                new_y = current_y + scaled_offset.y()
             else:
-                node.setXYpos(current_x + scaled_offset.x(), current_y + scaled_offset.y())
+                new_x = current_x + scaled_offset.x()
+                new_y = current_y + scaled_offset.y()
+            
+            self.current_positions[node] = (new_x, new_y)
+            node.setXYpos(int(new_x), int(new_y))
 
         self.last_pos = current_pos
 

@@ -1,4 +1,4 @@
-# Nuke Advanced Grab Tool v3.2
+# Nuke Advanced Grab Tool v3.4
 #
 # This script implements an advanced grab tool to mimic Nuke's native node movement behavior.
 #
@@ -8,6 +8,7 @@
 # - Full Tree Grab (Cmd+E): Moves the entire connected node tree (upstream and downstream).
 # - Exit grab mode by pressing 'E' again
 # - Option to keep nodes selected after exiting grab mode (controlled by user variable)
+# - Undo functionality (Ctrl+Z or Cmd+Z)
 #
 # Usage:
 # 1. Select a node or nodes in Nuke
@@ -18,6 +19,7 @@
 # 6. Left-click, press 'Enter', or press 'E' again to confirm the new position
 # 7. Press 'Esc' to cancel the operation
 # 8. Press 'Z' to lock movement to X-axis, 'Y' to lock movement to Y-axis
+# 9. Use Ctrl+Z (or Cmd+Z on Mac) to undo the grab operation
 
 import nuke
 from PySide2 import QtCore, QtGui, QtWidgets
@@ -40,6 +42,7 @@ class AdvancedGrabTool(QtCore.QObject):
         self.lock_x = False
         self.lock_y = False
         self.grab_mode = "standard"
+        self.undo_created = False
 
     def get_input_tree(self, node, upstream=None):
         if upstream is None:
@@ -77,7 +80,6 @@ class AdvancedGrabTool(QtCore.QObject):
 
         self.selected_nodes = nuke.selectedNodes()
         if not self.selected_nodes:
-            #nuke.message("Please select a node before activating the grab tool.")
             return
 
         self.grab_active = True
@@ -106,6 +108,10 @@ class AdvancedGrabTool(QtCore.QObject):
         
         app.installEventFilter(self)
 
+        # Create undo point at the start of grab
+        nuke.Undo().begin("Grab Tool")
+        self.undo_created = True
+
     def deactivate_grab(self):
         self.grab_active = False
         self.locked = False
@@ -129,7 +135,14 @@ class AdvancedGrabTool(QtCore.QObject):
         
         self.affected_nodes.clear()
 
+        # End undo group
+        if self.undo_created:
+            nuke.Undo().end()
+            self.undo_created = False
+
     def apply_grab(self):
+        for node in self.affected_nodes:
+            node.setXYpos(node.xpos(), node.ypos())
         self.deactivate_grab()
 
     def cancel_grab(self):

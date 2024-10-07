@@ -1,4 +1,4 @@
-# Nuke Advanced Grab Tool v3.8
+# Nuke Advanced Grab Tool v5.3
 #
 # This script implements an advanced grab tool to mimic Nuke's native node movement behavior.
 #
@@ -10,6 +10,7 @@
 # - Option to keep nodes selected after exiting grab mode
 # - Proper handling of zoom levels for consistent movement speed
 # - Middle mouse button or Alt + Left click freezes movement without changing position on release
+# - Light snapping to X and Y positions of other nodes (enabled with Shift key)
 #
 # Usage:
 # 1. Select a node or nodes in Nuke
@@ -18,15 +19,18 @@
 # 4. Press 'Cmd+E' to move the entire connected node tree
 # 5. Move the mouse to reposition the nodes
 # 6. Hold middle mouse button or Alt + Left click to freeze movement
-# 7. Left-click, press 'Enter', or press 'E' again to confirm the new position
-# 8. Press 'Esc' to cancel the operation
-# 9. Press 'Z' to lock movement to X-axis, 'Y' to lock movement to Y-axis
+# 7. Hold Shift to enable snapping to X and Y positions of other nodes
+# 8. Left-click, press 'Enter', or press 'E' again to confirm the new position
+# 9. Press 'Esc' to cancel the operation
+# 10. Press 'Z' to lock movement to X-axis, 'Y' to lock movement to Y-axis
 
 import nuke
 from PySide2 import QtCore, QtGui, QtWidgets
 
-# User variable to control whether nodes remain selected after grab mode
+# User variables
 KEEP_NODES_SELECTED = True
+SNAP_DISTANCE = 20
+SNAP_STRENGTH = 0.5  # Value between 0 and 1, where 1 is instant snapping and 0 is no snapping
 
 class AdvancedGrabTool(QtCore.QObject):
     def __init__(self):
@@ -45,6 +49,8 @@ class AdvancedGrabTool(QtCore.QObject):
         self.grab_mode = "standard"
         self.freeze_movement = False
         self.alt_pressed = False
+        self.shift_pressed = False
+        self.other_nodes = []
 
     def get_input_tree(self, node, upstream=None):
         if upstream is None:
@@ -109,6 +115,9 @@ class AdvancedGrabTool(QtCore.QObject):
         
         app.installEventFilter(self)
 
+        # Get all other nodes for snapping
+        self.other_nodes = [n for n in nuke.allNodes() if n not in self.affected_nodes]
+
         nuke.Undo().begin("Grab Tool")
 
     def deactivate_grab(self):
@@ -120,6 +129,7 @@ class AdvancedGrabTool(QtCore.QObject):
         self.freeze_movement = False
         self.last_pos = None
         self.alt_pressed = False
+        self.shift_pressed = False
         
         app = QtWidgets.QApplication.instance()
         while app.overrideCursor() is not None:
@@ -135,6 +145,7 @@ class AdvancedGrabTool(QtCore.QObject):
                 node.setSelected(False)
         
         self.affected_nodes.clear()
+        self.other_nodes.clear()
 
         nuke.Undo().end()
 
@@ -169,6 +180,8 @@ class AdvancedGrabTool(QtCore.QObject):
             elif event.type() == QtCore.QEvent.KeyPress:
                 if event.key() == QtCore.Qt.Key_Alt:
                     self.alt_pressed = True
+                elif event.key() == QtCore.Qt.Key_Shift:
+                    self.shift_pressed = True
                 elif event.key() == QtCore.Qt.Key_Z:
                     self.lock_x = True
                     self.lock_y = False
@@ -192,6 +205,8 @@ class AdvancedGrabTool(QtCore.QObject):
                     if self.freeze_movement:
                         self.freeze_movement = False
                         self.last_pos = QtGui.QCursor.pos()
+                elif event.key() == QtCore.Qt.Key_Shift:
+                    self.shift_pressed = False
         return False
 
     def update_positions(self, current_pos):
@@ -218,10 +233,28 @@ class AdvancedGrabTool(QtCore.QObject):
                 new_x = current_x + scaled_offset.x()
                 new_y = current_y + scaled_offset.y()
             
+            # Apply light snapping if Shift is pressed
+            if self.shift_pressed:
+                new_x, new_y = self.light_snap(new_x, new_y)
+            
             self.current_positions[node] = (new_x, new_y)
             node.setXYpos(int(new_x), int(new_y))
 
         self.last_pos = current_pos
+
+    def light_snap(self, x, y):
+        for node in self.other_nodes:
+            node_x, node_y = node.xpos(), node.ypos()
+            
+            # Snap to X position
+            if abs(x - node_x) < SNAP_DISTANCE:
+                x = node_x * SNAP_STRENGTH + x * (1 - SNAP_STRENGTH)
+            
+            # Snap to Y position
+            if abs(y - node_y) < SNAP_DISTANCE:
+                y = node_y * SNAP_STRENGTH + y * (1 - SNAP_STRENGTH)
+        
+        return x, y
 
 grab_tool = AdvancedGrabTool()
 

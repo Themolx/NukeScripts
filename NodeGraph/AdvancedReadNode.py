@@ -17,8 +17,11 @@ def get_read_node_info(node):
         if match:
             seq_num, shot_num, render_version, comp_version = match.groups()
             return seq_num, shot_num, comp_version
-        return None
+        else:
+            nuke.message("Invalid file path format in the Read node.")
+            return None
     except:
+        nuke.message("Error reading file path from node.")
         return None
 
 def find_comp_file(seq_num, shot_num, version):
@@ -27,7 +30,7 @@ def find_comp_file(seq_num, shot_num, version):
     comp_file = f"FILM_SQ{seq_num}_SH{shot_num}_comp_v{version}.nk"
     return os.path.normpath(os.path.join(comp_dir, comp_file))
 
-def open_comp_file_from_node():
+def open_comp_file():
     """Open the Nuke comp file corresponding to the Read node."""
     node = nuke.thisNode()
     try:
@@ -40,6 +43,8 @@ def open_comp_file_from_node():
                 if nuke.ask(f"Do you want to open the comp file:\n{comp_file}"):
                     nuke.scriptOpen(comp_file)
                     nuke.message(f"Successfully opened comp file:\n{comp_file}")
+                else:
+                    nuke.message("Operation cancelled by user.")
             else:
                 nuke.message(f"Comp file not found:\n{comp_file}\n\nPlease check if the file exists.")
     except Exception as e:
@@ -53,14 +58,13 @@ def add_mt_tab(node):
         tab = nuke.Tab_Knob('MT', 'MT')
         node.addKnob(tab)
         
-        open_comp_btn = nuke.PyScript_Knob('open_comp', 'Open Comp File', 'read_node_callback.open_comp_file_from_node()')
+        open_comp_btn = nuke.PyScript_Knob('open_comp', 'Open Comp File', 'open_comp_file()')
         node.addKnob(open_comp_btn)
 
 def onCreateCallback():
     """Callback function that runs when a Read node is created."""
     node = nuke.thisNode()
     if node.Class() == 'Read':
-        # Add default PFX tab stuff here if needed
         add_mt_tab(node)
 
 # Register the callback

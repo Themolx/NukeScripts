@@ -1,10 +1,15 @@
-# read_node_callback.py
+from __future__ import with_statement
+
 import nuke
 import os
 import re
 
 # User variables
 WORK_ROOT = "Z:/20105_Pysna_film/work/FILM"
+LIGHTNING_RENDER_SCRIPT = "Y:/20105_Pysna_film/tmp/martin.tomek/BetaScripts/LoadLightningRenderFromRender.py"
+
+def print_debug(message):
+    print(f"DEBUG: {message}")
 
 def get_read_node_info(node):
     """Extract sequence, shot, and version information from the Read node."""
@@ -50,58 +55,86 @@ def open_comp_file():
     except Exception as e:
         nuke.message(f"An unexpected error occurred:\n{str(e)}")
 
-def add_mt_tab(node):
-    """Add the MT tab with the Open Comp button to the Read node."""
-    # Only add if it doesn't already exist
-    if 'MT' not in node.knobs():
-        tab = nuke.Tab_Knob('MT', 'MT')
-        node.addKnob(tab)
-        
-        open_comp_btn = nuke.PyScript_Knob('open_comp', 'Open Comp File', 'open_comp_file()')
-        node.addKnob(open_comp_btn)
+def create_crypto_setup(read_node, selected_node):
+    # Create Cryptomatte2 node
+    crypto_node = nuke.nodes.Cryptomatte2(inputs=[read_node])
+    crypto_node['name'].setValue(f"Crypto_{read_node.name()}")
+    
+    # Create Shuffle node with correct inputs and channel routing
+    shuffle_node = nuke.nodes.Shuffle(
+        name=f"Shuffle_{read_node.name()}",
+        inputs=[selected_node, crypto_node]  # Switch inputs: input 1 to selected node, input 2 to Crypto
+    )
+    shuffle_node['in'].setValue('alpha')
+    shuffle_node['in2'].setValue('rgba')
+    shuffle_node['red'].setValue('red2')
+    shuffle_node['green'].setValue('green2')
+    shuffle_node['blue'].setValue('blue2')
+    shuffle_node['alpha'].setValue('red')
+    
+    # Create Premult node
+    premult_node = nuke.nodes.Premult(
+        name=f"Premult_{read_node.name()}",
+        inputs=[shuffle_node]
+    )
+    return crypto_node, shuffle_node, premult_node
 
-def create_custom_read_node():
-    """Create a custom Read node with all required knobs."""
+def load_lightning_renders():
+    """Load lightning renders and set up Cryptomatte nodes."""
+    try:
+        # Normalize the path to use correct slashes for the operating system
+        script_path = os.path.normpath(LIGHTNING_RENDER_SCRIPT)
+        print_debug(f"Attempting to load script from: {script_path}")
+        
+        # Read the content of the script file
+        with open(script_path, 'r') as file:
+            script_content = file.read()
+        
+        # Execute the script content within the correct Nuke context
+        with nuke.Root():
+            exec(script_content, {
+                "print_debug": print_debug,
+                "create_crypto_setup": create_crypto_setup,
+                "nuke": nuke,
+                "__file__": script_path
+            })
+    except Exception as e:
+        nuke.message(f"An unexpected error occurred while loading lightning renders:\n{str(e)}")
+        print_debug(f"Error details: {str(e)}")
+
+def add_custom_tab(node):
+    """Add custom MT tab and knobs to the Read node."""
+    # Add MT tab
+    mt_tab = nuke.Tab_Knob('MT', 'MT')
+    node.addKnob(mt_tab)
+    
+    open_comp_btn = nuke.PyScript_Knob('open_comp', 'Open Comp File', 'open_comp_file()')
+    node.addKnob(open_comp_btn)
+    
+    load_lightning_btn = nuke.PyScript_Knob('load_lightning', 'Load Lightning Renders', 'load_lightning_renders()')
+    node.addKnob(load_lightning_btn)
+
+def create_advanced_read_node():
+    """Create an advanced Read node with all required knobs."""
     read = nuke.createNode("Read")
     
     # Set default values
     read['file_type'].setValue('exr')
     read['tile_color'].setValue(0xff0000ff)
     
-    # Add PFX tab and knobs
-    tab = nuke.Tab_Knob('PFX', 'PFX')
-    read.addKnob(tab)
-    
-    fast_tier_label = nuke.Text_Knob('fast_tier_storage_label', ' ', 'FAST TIER STORAGE')
-    read.addKnob(fast_tier_label)
-    
-    status = nuke.Text_Knob('fast_tier_storage_status', 'Status:             ', 'not used')
-    read.addKnob(status)
-    
-    sequence_status = nuke.Text_Knob('fast_tier_storage_sequence_status', 'File sequence:   ', 'not localized')
-    read.addKnob(sequence_status)
-    
-    localize_btn = nuke.PyScript_Knob('try_to_localize_btn', '        Try to localize        ', 
-                                      'from sc.nuke.pfx_nodes import pfx_read\npfx_read.try_to_localize_btn_hndl()')
-    read.addKnob(localize_btn)
-    
-    tier_switch_btn = nuke.PyScript_Knob('tier_switch_btn', '     Switch to Fast Tier     ',
-                                         'from sc.nuke.pfx_nodes import pfx_read\npfx_read.tier_switch_btn_hndl()')
-    read.addKnob(tier_switch_btn)
-    
-    # Add MT tab and button
-    add_mt_tab(read)
+    # Add custom MT tab and knobs
+    add_custom_tab(read)
     
     return read
 
-# Replace the default Read node with our custom one
-nuke.menu('Nodes').addCommand('Image/Read', create_custom_read_node, 'r', icon='Read.png', shortcutContext=2)
+# Replace the default Read node with our advanced one
+nuke.menu('Nodes').addCommand('Image/Read', create_advanced_read_node, 'r', icon='Read.png', shortcutContext=2)
 
-# This ensures the MT tab is added to any Read nodes created through other means
+# This ensures custom MT tab is added to any Read nodes created through other means
 def onCreateCallback():
     node = nuke.thisNode()
     if node.Class() == 'Read':
-        add_mt_tab(node)
+        add_custom_tab(node)
 
 # Register the callback
 nuke.addOnCreate(onCreateCallback, nodeClass='Read')

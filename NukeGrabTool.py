@@ -1,29 +1,23 @@
-# Nuke Advanced Grab Tool v3.8
+# Nuke Advanced Grab Tool v5.1
 #
-# This script implements an advanced grab tool to mimic Nuke's native node movement behavior.
+# This script implements an advanced grab tool to mimic Nuke's native node movement behavior,
+# with added auto-backdrop functionality that works in and out of grab mode.
 #
 # Features:
 # - Standard Grab (E): Moves only selected nodes.
 # - Input Tree Grab (Cmd+Option+E): Moves the selected node and all its upstream nodes.
 # - Full Tree Grab (Cmd+E): Moves the entire connected node tree (upstream and downstream).
+# - A-Tree Grab (Shift+A): Moves selected nodes and their entire A input trees.
+# - Auto Backdrop (Shift+B): Creates a backdrop around affected/selected nodes.
 # - Exit grab mode by pressing 'E' again
 # - Option to keep nodes selected after exiting grab mode
 # - Proper handling of zoom levels for consistent movement speed
 # - Middle mouse button or Alt + Left click freezes movement without changing position on release
-#
-# Usage:
-# 1. Select a node or nodes in Nuke
-# 2. Press 'E' to move only the selected node(s)
-# 3. Press 'Cmd+Option+E' to move the selected node and all its inputs
-# 4. Press 'Cmd+E' to move the entire connected node tree
-# 5. Move the mouse to reposition the nodes
-# 6. Hold middle mouse button or Alt + Left click to freeze movement
-# 7. Left-click, press 'Enter', or press 'E' again to confirm the new position
-# 8. Press 'Esc' to cancel the operation
-# 9. Press 'Z' to lock movement to X-axis, 'Y' to lock movement to Y-axis
 
 import nuke
 from PySide2 import QtCore, QtGui, QtWidgets
+import random
+import colorsys
 
 # User variable to control whether nodes remain selected after grab mode
 KEEP_NODES_SELECTED = True
@@ -74,6 +68,14 @@ class AdvancedGrabTool(QtCore.QObject):
         
         return connected
 
+    def get_a_input_tree(self, node):
+        tree = set([node])
+        current = node.input(0)
+        while current:
+            tree.add(current)
+            current = current.input(0)
+        return tree
+
     def activate_grab(self, mode="standard"):
         if self.locked:
             return
@@ -94,6 +96,10 @@ class AdvancedGrabTool(QtCore.QObject):
             self.affected_nodes = set()
             for node in self.selected_nodes:
                 self.affected_nodes.update(self.get_connected_nodes(node))
+        elif self.grab_mode == "a_tree":
+            self.affected_nodes = set()
+            for node in self.selected_nodes:
+                self.affected_nodes.update(self.get_a_input_tree(node))
         else:  # standard mode
             self.affected_nodes = set(self.selected_nodes)
 
@@ -148,6 +154,76 @@ class AdvancedGrabTool(QtCore.QObject):
             node.setXYpos(x, y)
         self.deactivate_grab()
 
+    def create_auto_backdrop(self):
+        nodes_to_backdrop = self.affected_nodes if self.grab_active else nuke.selectedNodes()
+        if not nodes_to_backdrop:
+            return
+
+        # Calculate bounds
+        bdX = min(node.xpos() for node in nodes_to_backdrop)
+        bdY = min(node.ypos() for node in nodes_to_backdrop)
+        bdW = max(node.xpos() + node.screenWidth() for node in nodes_to_backdrop) - bdX
+        bdH = max(node.ypos() + node.screenHeight() for node in nodes_to_backdrop) - bdY
+
+        # Expand the bounds
+        left, top, right, bottom = (-80, -140, 80, 80)
+        bdX += left
+        bdY += top
+        bdW += (right - left)
+        bdH += (bottom - top)
+
+        # Generate a light, unsaturated color
+        hue = random.random()
+        saturation = random.uniform(0.1, 0.3)
+        value = random.uniform(0.7, 0.9)
+        r, g, b = [int(255 * c) for c in colorsys.hsv_to_rgb(hue, saturation, value)]
+        hex_color = int('%02x%02x%02x%02x' % (r, g, b, 255), 16)
+
+        # Check for existing backdrops, groups, and interesting nodes
+        existing_backdrops = [n for n in nodes_to_backdrop if n.Class() == 'BackdropNode']
+        groups = [n for n in nodes_to_backdrop if n.Class() == 'Group']
+        shuffles = [n for n in nodes_to_backdrop if n.Class() in ['Shuffle', 'Shuffle2']]
+
+        # Find the node with the most inputs
+        node_with_most_inputs = max(nodes_to_backdrop, key=lambda n: n.inputs())
+
+        # Determine the backdrop name
+        if groups:
+            backdrop_name = f"{groups[0].name().rstrip('0123456789')}"
+        elif shuffles:
+            shuffle_values = set()
+            for n in shuffles:
+                if 'in1' in n.knobs():
+                    shuffle_values.add(n['in1'].value())
+            backdrop_name = ", ".join(sorted(shuffle_values))
+        elif existing_backdrops:
+            backdrop_name = f"{existing_backdrops[0].name().rstrip('0123456789')}_sub"
+        else:
+            backdrop_name = f"{node_with_most_inputs.Class()}_{node_with_most_inputs.name().rstrip('0123456789')}"
+
+        # Create backdrop
+        new_backdrop = nuke.nodes.BackdropNode(
+            xpos=bdX,
+            bdwidth=bdW,
+            ypos=bdY,
+            bdheight=bdH,
+            tile_color=hex_color,
+            note_font_size=42,
+            name=backdrop_name
+        )
+        new_backdrop['label'].setValue(backdrop_name)
+
+        # Set z-order
+        if existing_backdrops:
+            lowest_z_order = min(b['z_order'].value() for b in existing_backdrops)
+            new_backdrop['z_order'].setValue(lowest_z_order - 1)
+        else:
+            new_backdrop['z_order'].setValue(0)
+
+        # If in grab mode, apply the grab
+        if self.grab_active:
+            self.apply_grab()
+
     def eventFilter(self, obj, event):
         if self.grab_active:
             if event.type() == QtCore.QEvent.MouseMove:
@@ -185,6 +261,9 @@ class AdvancedGrabTool(QtCore.QObject):
                     return True
                 elif event.key() == QtCore.Qt.Key_E:
                     self.apply_grab()
+                    return True
+                elif event.key() == QtCore.Qt.Key_B and event.modifiers() == QtCore.Qt.ShiftModifier:
+                    self.create_auto_backdrop()
                     return True
             elif event.type() == QtCore.QEvent.KeyRelease:
                 if event.key() == QtCore.Qt.Key_Alt:
@@ -237,7 +316,15 @@ def grab_input_tree():
 def grab_full_tree():
     grab_tool.activate_grab(mode="full_tree")
 
+def grab_a_tree():
+    grab_tool.activate_grab(mode="a_tree")
+
+def create_auto_backdrop():
+    grab_tool.create_auto_backdrop()
+
 # Add the Grab tool commands to Nuke's menu
 nuke.menu('Nuke').addCommand('Edit/Grab Tool', grab_standard, 'e')
 nuke.menu('Nuke').addCommand('Edit/Grab Input Tree', grab_input_tree, 'ctrl+e')
 nuke.menu('Nuke').addCommand('Edit/Grab Full Tree', grab_full_tree, 'alt+ctrl+e')
+nuke.menu('Nuke').addCommand('Edit/Grab A-Tree', grab_a_tree, 'shift+a')
+nuke.menu('Nuke').addCommand('Edit/Auto Backdrop', create_auto_backdrop, 'shift+b')

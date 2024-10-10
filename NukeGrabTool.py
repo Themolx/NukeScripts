@@ -1,4 +1,4 @@
-# Nuke Advanced Grab Tool v5.1
+# Nuke Advanced Grab Tool v5.2
 #
 # This script implements an advanced grab tool to mimic Nuke's native node movement behavior,
 # with added auto-backdrop functionality that works in and out of grab mode.
@@ -13,7 +13,6 @@
 # - Option to keep nodes selected after exiting grab mode
 # - Proper handling of zoom levels for consistent movement speed
 # - Middle mouse button or Alt + Left click freezes movement without changing position on release
-
 import nuke
 from PySide2 import QtCore, QtGui, QtWidgets
 import random
@@ -154,6 +153,17 @@ class AdvancedGrabTool(QtCore.QObject):
             node.setXYpos(x, y)
         self.deactivate_grab()
 
+    def get_copy_node_channel(self, nodes):
+        for node in nodes:
+            if node.Class() == 'Copy':
+                for i in range(4):  # Check up to 4 'to' channels
+                    knob_name = f'to{i}'
+                    if knob_name in node.knobs():
+                        channel_value = node[knob_name].value()
+                        if channel_value:  # If the channel is not empty
+                            return channel_value.split('.')[0]  # Return the main channel name (before the dot)
+        return None
+
     def create_auto_backdrop(self):
         nodes_to_backdrop = self.affected_nodes if self.grab_active else nuke.selectedNodes()
         if not nodes_to_backdrop:
@@ -179,16 +189,21 @@ class AdvancedGrabTool(QtCore.QObject):
         r, g, b = [int(255 * c) for c in colorsys.hsv_to_rgb(hue, saturation, value)]
         hex_color = int('%02x%02x%02x%02x' % (r, g, b, 255), 16)
 
-        # Check for existing backdrops, groups, and interesting nodes
+        # Check for existing backdrops, groups, and nodes
         existing_backdrops = [n for n in nodes_to_backdrop if n.Class() == 'BackdropNode']
         groups = [n for n in nodes_to_backdrop if n.Class() == 'Group']
+        copy_nodes = [n for n in nodes_to_backdrop if n.Class() == 'Copy']
         shuffles = [n for n in nodes_to_backdrop if n.Class() in ['Shuffle', 'Shuffle2']]
 
         # Find the node with the most inputs
         node_with_most_inputs = max(nodes_to_backdrop, key=lambda n: n.inputs())
 
         # Determine the backdrop name
-        if groups:
+        copy_channel = self.get_copy_node_channel(nodes_to_backdrop)
+        
+        if copy_channel:
+            backdrop_name = f"{copy_channel}"
+        elif groups:
             backdrop_name = f"{groups[0].name().rstrip('0123456789')}"
         elif shuffles:
             shuffle_values = set()

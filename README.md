@@ -46,7 +46,7 @@ As a **Compositor** and **Technical Director**, I've developed tools to enhance 
 
 > Merges color correction nodes, handling different types of color manipulations to streamline the merging process.
 
-### NodeGraph Tools
+## NodeGraph Tools
 
 #### **SmartBackdrop.py**
 
@@ -86,7 +86,7 @@ As a **Compositor** and **Technical Director**, I've developed tools to enhance 
 
 > Verifies mask grades for accuracy and consistency.
 
-### Loaders
+## Loaders
 
 #### **CameraLoader.py**
 
@@ -122,7 +122,7 @@ As a **Compositor** and **Technical Director**, I've developed tools to enhance 
 
 > Assists with setting up denoise comp shots, ensuring proper setup.
 
-### Miscellaneous
+## Miscellaneous
 
 #### **zdefocuschecker.py**
 

@@ -1,44 +1,19 @@
 # Nuke Custom Tools
 
----
-
 ## Overview
 
-As a **Compositor** and **Technical Director**, I've developed various tools to enhance workflow efficiency and solve common problems in **Nuke compositing pipelines**. This documentation outlines the functionality and benefits of each tool.
-
----
+As a **Compositor** and **Technical Director**, I've developed tools to enhance workflow efficiency in **Nuke compositing**. This documentation outlines each tool's functionality.
 
 ## Table of Contents
 
 1. [**Installation**](#installation)
 2. [**Tools Overview**](#tools-overview)
+   - [**General Tools**](#general-tools)
    - [**NodeGraph Tools**](#nodegraph-tools)
-     - [SmartBackdrop.py](#smartbackdroppy)
-     - [NodeLabeler.py](#nodelabelerpy)
-     - [AdvancedShuffle.py](#advancedshufflepy)
-     - [DeleteAllBackdrops.py](#deleteallbackdropspy)
-     - [CryptoMatteFixer.py](#cryptomattefixerpy)
-     - [CryptoLabeler.py](#cryptolabelerpy)
    - [**Shufflers**](#shufflers)
-     - [MaskCheckerPremult.py](#maskcheckerpremultpy)
-     - [BatchLightShuffler.py](#batchlightshufflerpy)
-     - [MaskCheckerGrade.py](#maskcheckergradepy)
    - [**Loaders**](#loaders)
-     - [CameraLoader.py](#cameraloaderpy)
-     - [SequenceLoader.py](#sequenceloaderpy)
-     - [LoadLightningRender.py](#loadlightningrenderpy)
-     - [LoadLightningRenderFromRender.py](#loadlightningrenderfromrenderpy)
-     - [AppenderLoader.py](#appenderloaderpy)
-     - [OpenCompFromRender.py](#opencompfromrenderpy)
-     - [**NewShot Tools**](#newshot-tools)
-       - [NewCompShot.py](#newcompshotpy)
-       - [NewDenoiseComp.py](#newdenoisecomppy)
-   - [**Else**](#else)
-     - [zdefocuschecker.py](#zdefocuscheckerpy)
-     - [testik.py](#testikpy)
+   - [**Miscellaneous**](#miscellaneous)
 3. [**Conclusion**](#conclusion)
-
----
 
 ## Installation
 
@@ -50,107 +25,116 @@ As a **Compositor** and **Technical Director**, I've developed various tools to 
    ```
 4. **Restart** Nuke.
 
----
-
 ## Tools Overview
+
+### General Tools
+
+#### **NukeGrabTool.py**
+
+> **The hero script of this collection**. This advanced node movement tool mimics Nuke's native behavior while adding powerful features:
+>
+> - **Standard Grab (E)**: Moves only selected nodes.
+> - **Input Tree Grab (Cmd+Option+E)**: Moves the selected node along with all its upstream nodes, ensuring proper context movement.
+> - **Full Tree Grab (Cmd+E)**: Moves the entire node tree, both upstream and downstream, making it easy to reposition complex setups.
+> - **Freeze Movement**: Hold the middle mouse button or Alt + Left click to freeze without changing position, providing precise control.
+> - **Keep Nodes Selected**: Nodes remain selected after the grab, allowing continued manipulation.
+> - **Zoom Handling**: Maintains consistent movement speed regardless of node graph scale.
+>
+> This tool significantly saves time and effort in managing node arrangements, especially for complex and interconnected node structures.
+
+#### **MergeCC.py**
+
+> Merges color correction nodes, handling different types of color manipulations to streamline the merging process.
 
 ### NodeGraph Tools
 
 #### **SmartBackdrop.py**
 
-> Automatically creates a backdrop for selected nodes, enhancing node graph organization with user-defined padding and offset values.
+> Creates a backdrop for selected nodes, providing an organized layout with user-defined padding.
 
 #### **NodeLabeler.py**
 
-> Labels and colors nodes with animated values, allowing quick identification of animatable nodes and providing visual cues for animation data.
+> Labels and colors animated nodes, providing visual cues for animated values. Changes are dynamically updated with callbacks.
 
 #### **AdvancedShuffle.py**
 
-> Enables dynamic shuffling of node connections in Nuke, offering easy vertical spacing adjustments and node identification for more efficient compositing workflows.
+> Manages node connections dynamically by shuffling and arranging them efficiently.
 
 #### **DeleteAllBackdrops.py**
 
-> Deletes all backdrops in the node graph, providing a quick way to clean up unnecessary backdrops.
+> Deletes all backdrop nodes in the current script, providing a quick cleanup option.
 
 #### **CryptoMatteFixer.py**
 
-> Fixes CryptoMatte issues by addressing common problems such as missing IDs or broken connections, ensuring proper functionality of matte extraction.
+> Fixes common issues in CryptoMatte nodes, ensuring proper matte extraction.
 
 #### **CryptoLabeler.py**
 
-> Automatically labels CryptoMatte nodes based on the matte passes, making it easier to work with complex multi-matte workflows.
-
----
+> Labels CryptoMatte nodes automatically, simplifying workflows involving multiple matte passes.
 
 ### Shufflers
 
 #### **MaskCheckerPremult.py**
 
-> Checks the premultiplied status of masks to ensure they are correctly set up for downstream operations, helping maintain consistency.
+> Checks that masks are premultiplied correctly for consistency in downstream operations.
 
 #### **BatchLightShuffler.py**
 
-> Batch processes multiple lighting layers into different shuffles, providing an organized approach to managing complex lighting setups in Nuke.
+> Batch processes lighting layers, making it easier to manage complex setups.
 
 #### **MaskCheckerGrade.py**
 
-> Evaluates mask grades to verify the accuracy and consistency of mask layers used in compositing.
-
----
+> Verifies mask grades for accuracy and consistency.
 
 ### Loaders
 
 #### **CameraLoader.py**
 
-> Loads camera data for shots into Nuke, simplifying the setup process and providing accurate camera movements for 3D integration.
+> Loads camera data into Nuke, providing accurate camera movement for 3D integration.
 
 #### **SequenceLoader.py**
 
-> Loads sequences and creates read nodes for each shot, providing an efficient way to load multiple image sequences in a project.
+> Loads sequences and creates Read nodes for streamlined loading.
 
 #### **LoadLightningRender.py**
 
-> Loads lighting render layers, creates Read nodes, and arranges them for easy setup. Also sets up Cryptomatte and premult nodes to organize the node graph.
+> Loads render layers, sets up Cryptomatte and premult nodes, and arranges nodes for easy setup.
 
 #### **LoadLightningRenderFromRender.py**
 
-> Loads the latest lighting render layers for a given shot in Nuke, creates Read nodes for each layer, and sets up Cryptomatte, Shuffle, and Premult node chains for easy organization.
+> Loads lighting render layers, sets up Cryptomatte, Shuffle, and Premult nodes, and arranges them neatly.
 
 #### **AppenderLoader.py**
 
-> Loads sequences, creates read nodes, and generates an AppendClip node for review. It includes an easy playback function for quick reviewing of sequences.
+> Loads sequences and creates AppendClip nodes for easy review with color-coded backdrops.
 
 #### **OpenCompFromRender.py**
 
-> Opens the corresponding comp file based on a selected Read node by extracting shot and version information from the file path.
+> Opens corresponding comp files based on selected Read nodes.
 
 #### **NewShot Tools**
 
 ##### **NewCompShot.py**
 
-> Sets up a new composition shot by loading project data, lighting renders, a workspace template, and updating camera settings.
+> Sets up new comp shots by importing templates, loading renders, and updating settings.
 
 ##### **NewDenoiseComp.py**
 
-> A script designed to assist with setting up a denoise comp, though it lacks a detailed description of its features.
+> Assists with setting up denoise comp shots, ensuring proper setup.
 
----
-
-### Else
+### Miscellaneous
 
 #### **zdefocuschecker.py**
 
-> Checks the ZDefocus setup for consistency, helping ensure that all settings are correctly applied.
+> Checks ZDefocus node settings for consistency.
 
 #### **testik.py**
 
-> A test script used for experimental purposes or quick tests during development.
-
----
+> A test script for experimental purposes.
 
 ## Conclusion
 
-These tools represent a comprehensive approach to solving common **VFX production challenges**. They offer significant **time savings**, improved **consistency**, and enhanced **quality control** in daily tasks. As a **Technical Director**, I remain committed to refining and expanding this toolkit based on user feedback and evolving production needs.
+These tools address common **VFX production challenges** with **time savings**, improved **consistency**, and enhanced **quality control**. I remain committed to expanding this toolkit based on feedback and evolving needs.
 
-Feel free to reach out with questions, suggestions, or specific workflow challenges that might benefit from similar custom solutions.
+Feel free to reach out with questions or suggestions.
 

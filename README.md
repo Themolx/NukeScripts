@@ -1,10 +1,12 @@
-# Nuke Custom Tools
+#  Nuke Custom Tools 
 
 ## Overview
 
 As a **Compositor** and **Technical Director**, I've developed tools to enhance workflow efficiency in **Nuke compositing**. This documentation outlines each tool's functionality.
 
-## Table of Contents
+---
+
+## 📋 Table of Contents
 
 1. [**Installation**](#installation)
 2. [**Tools Overview**](#tools-overview)
@@ -15,7 +17,9 @@ As a **Compositor** and **Technical Director**, I've developed tools to enhance 
    - [**Miscellaneous**](#miscellaneous)
 3. [**Conclusion**](#conclusion)
 
-## Installation
+---
+
+## 🚀 Installation
 
 1. **Download** the tools package.
 2. **Place** scripts in your **Nuke plugins directory**.
@@ -25,28 +29,31 @@ As a **Compositor** and **Technical Director**, I've developed tools to enhance 
    ```
 4. **Restart** Nuke.
 
-## Tools Overview
+---
 
-### General Tools
+## 🛠️ Tools Overview
+
+### 🔥 General Tools
 
 #### **NukeGrabTool.py**
 
 > **The hero script of this collection**. This advanced node movement tool mimics Nuke's native behavior while adding powerful features:
 >
 > - **Standard Grab (E)**: Moves only selected nodes.
-> - **Input Tree Grab (Cmd+Option+E)**: Moves the selected node along with all its upstream nodes, ensuring proper context movement.
-> - **Full Tree Grab (Cmd+E)**: Moves the entire node tree, both upstream and downstream, making it easy to reposition complex setups.
-> - **Freeze Movement**: Hold the middle mouse button or Alt + Left click to freeze without changing position, providing precise control.
-> - **Keep Nodes Selected**: Nodes remain selected after the grab, allowing continued manipulation.
-> - **Zoom Handling**: Maintains consistent movement speed regardless of node graph scale.
 >
-> This tool significantly saves time and effort in managing node arrangements, especially for complex and interconnected node structures.
+> - **Input Tree Grab (Cmd+Option+E)**: Moves the selected node along with all its upstream nodes, ensuring proper context movement.
+>
+> - **Full Tree Grab (Cmd+E)**: Moves the entire node tree, both upstream and downstream, making it easy to reposition complex setups.
+>
+> - This tool significantly saves time and effort in managing node arrangements, especially for complex and interconnected node structures. 
 
 #### **MergeCC.py**
 
 > Merges color correction nodes, handling different types of color manipulations to streamline the merging process.
 
-## NodeGraph Tools
+---
+
+### 🖼️ NodeGraph Tools
 
 #### **SmartBackdrop.py**
 
@@ -72,7 +79,9 @@ As a **Compositor** and **Technical Director**, I've developed tools to enhance 
 
 > Labels CryptoMatte nodes automatically, simplifying workflows involving multiple matte passes.
 
-### Shufflers
+---
+
+### 🌟 Shufflers
 
 #### **MaskCheckerPremult.py**
 
@@ -86,7 +95,9 @@ As a **Compositor** and **Technical Director**, I've developed tools to enhance 
 
 > Verifies mask grades for accuracy and consistency.
 
-## Loaders
+---
+
+### 📦 Loaders
 
 #### **CameraLoader.py**
 
@@ -122,7 +133,9 @@ As a **Compositor** and **Technical Director**, I've developed tools to enhance 
 
 > Assists with setting up denoise comp shots, ensuring proper setup.
 
-## Miscellaneous
+---
+
+### 🌀 Miscellaneous
 
 #### **zdefocuschecker.py**
 
@@ -132,7 +145,9 @@ As a **Compositor** and **Technical Director**, I've developed tools to enhance 
 
 > A test script for experimental purposes.
 
-## Conclusion
+---
+
+## 🏁 Conclusion
 
 These tools address common **VFX production challenges** with **time savings**, improved **consistency**, and enhanced **quality control**. I remain committed to expanding this toolkit based on feedback and evolving needs.
 

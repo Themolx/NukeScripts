@@ -1,11 +1,11 @@
 """
-ZDefocus Controller Script for Nuke - v15
+ZDefocus Controller Script for Nuke - v16
 
 This script creates or updates a centralized controller for all PxF_ZDefocusHERO nodes in a Nuke script.
 It initializes the controller with camera values (except for focal plane) and sets all ZDefocus nodes to match the template.
 The reset button updates camera values without changing the focal plane and without showing a dialog.
 
-Last updated: 2023-10-01
+Last updated: 2023-10-02
 """
 
 import nuke
@@ -22,16 +22,17 @@ def get_camera_values():
         }
     return {'focalLength': 32, 'fstop': 5.6}  # Default values
 
-def reset_controller_values():
-    controller = nuke.toNode('PxF_ZDefocusHERO_Controller')
-    camera_values = get_camera_values()
-    if controller:
-        for knob, value in camera_values.items():
-            if knob in controller.knobs():
-                controller[knob].setValue(value)
-        # Note: We're not updating the FocalPlane value here
-
 def create_zdefocus_controller():
+    global reset_controller_values  # Make this function globally accessible
+    
+    def reset_controller_values():
+        controller = nuke.toNode('PxF_ZDefocusHERO_Controller')
+        camera_values = get_camera_values()
+        if controller:
+            for knob, value in camera_values.items():
+                if knob in controller.knobs():
+                    controller[knob].setValue(value)
+    
     existing_controller = nuke.toNode('PxF_ZDefocusHERO_Controller')
     if existing_controller:
         nuke.delete(existing_controller)
@@ -126,5 +127,3 @@ if k.name() == "disable_all":
     
     nuke.message(f"Created controller with camera values. {len(zdefocus_nodes)} ZDefocus nodes connected, renamed, and standardized with 'bokeh' filter.")
 
-# Run the script
-create_zdefocus_controller()

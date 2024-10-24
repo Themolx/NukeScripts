@@ -147,4 +147,4 @@ def delete_backdrops():
 # Add the Auto Backdrop commands to Nuke's menu
 menu = nuke.menu('Nuke')
 menu.addCommand('Edit/Auto Backdrop', create_auto_backdrop, 'shift+b')
-menu.addCommand('Edit/Delete Backdrops', delete_backdrops, 'ctrl+alt+b')
+menu.addCommand('Edit/Delete Backdrops', delete_backdrops, 'ctrl+shift+b')

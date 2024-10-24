@@ -1,6 +1,3 @@
-# AutoBackdrop.py v1.6
-# Automatically creates a backdrop node for selected nodes in Nuke
-
 import nuke
 import random
 import colorsys
@@ -13,6 +10,15 @@ VALUE_RANGE = (0.8, 0.9)  # Range for color value
 FONT_SIZE = 42  # Font size for the backdrop label
 
 def get_backdrop_name(nodes):
+    # Check for FrameHold nodes first as they take priority
+    framehold_nodes = [n for n in nodes if n.Class() == 'FrameHold']
+    if framehold_nodes:
+        # Get the first framehold's frame number
+        framehold = framehold_nodes[0]
+        if 'first_frame' in framehold.knobs():
+            frame_num = int(framehold['first_frame'].value())
+            return f"HOLD @ {frame_num}"
+    
     node_classes = set(node.Class() for node in nodes)
     
     has_anchor = any(node.Class() == "NoOp" and node.knob("identifier") and node.knob("identifier").value() == "anchor" for node in nodes)
@@ -70,36 +76,30 @@ def create_auto_backdrop():
     nodes = nuke.selectedNodes()
     if not nodes:
         return
-
     # Calculate bounds
     bdX = min(node.xpos() for node in nodes)
     bdY = min(node.ypos() for node in nodes)
     bdW = max(node.xpos() + node.screenWidth() for node in nodes) - bdX
     bdH = max(node.ypos() + node.screenHeight() for node in nodes) - bdY
-
     # Add padding
     bdX -= PADDING
     bdY -= PADDING
     bdW += 2 * PADDING
     bdH += 2 * PADDING
-
     # Apply backdrop offset
     left, top, right, bottom = BACKDROP_OFFSET
     bdX += left
     bdY += top
     bdW += (right - left)
     bdH += (bottom - top)
-
     # Generate a light, unsaturated color
     hue = random.random()
     saturation = random.uniform(*SATURATION_RANGE)
     value = random.uniform(*VALUE_RANGE)
     r, g, b = [int(255 * c) for c in colorsys.hsv_to_rgb(hue, saturation, value)]
     hex_color = int('%02x%02x%02x%02x' % (r, g, b, 255), 16)
-
     # Determine the backdrop name
     backdrop_name = get_backdrop_name(nodes)
-
     # Create backdrop
     backdrop = nuke.nodes.BackdropNode(
         xpos = bdX,
@@ -111,8 +111,40 @@ def create_auto_backdrop():
         name = backdrop_name
     )
     backdrop['label'].setValue(backdrop_name)
-
     return backdrop
 
-# Add the Auto Backdrop command to Nuke's menu
-nuke.menu('Nuke').addCommand('Edit/Auto Backdrop', create_auto_backdrop, 'shift+b')
+def delete_backdrops():
+    """Delete all backdrop nodes that contain the selected nodes"""
+    selected_nodes = nuke.selectedNodes()
+    if not selected_nodes:
+        return
+    
+    # Get all backdrop nodes in the script
+    all_backdrops = [n for n in nuke.allNodes() if n.Class() == "BackdropNode"]
+    
+    # For each backdrop, check if it contains any of the selected nodes
+    for backdrop in all_backdrops:
+        bdX = backdrop.xpos()
+        bdY = backdrop.ypos()
+        bdW = backdrop['bdwidth'].value()
+        bdH = backdrop['bdheight'].value()
+        
+        # Check each selected node
+        for node in selected_nodes:
+            nodeX = node.xpos()
+            nodeY = node.ypos()
+            nodeW = node.screenWidth()
+            nodeH = node.screenHeight()
+            
+            # If the node is inside the backdrop bounds
+            if (bdX <= nodeX <= (bdX + bdW) and 
+                bdY <= nodeY <= (bdY + bdH) and 
+                bdX <= (nodeX + nodeW) <= (bdX + bdW) and 
+                bdY <= (nodeY + nodeH) <= (bdY + bdH)):
+                nuke.delete(backdrop)
+                break
+
+# Add the Auto Backdrop commands to Nuke's menu
+menu = nuke.menu('Nuke')
+menu.addCommand('Edit/Auto Backdrop', create_auto_backdrop, 'shift+b')
+menu.addCommand('Edit/Delete Backdrops', delete_backdrops, 'ctrl+alt+b')

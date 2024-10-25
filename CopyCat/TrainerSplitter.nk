@@ -1,5 +1,4 @@
 set cut_paste_input [stack 0]
-version 14.0 v5
 push $cut_paste_input
 NoOp {
 name TrainerSplitter

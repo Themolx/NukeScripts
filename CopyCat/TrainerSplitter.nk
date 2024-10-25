@@ -1,0 +1,27 @@
+set cut_paste_input [stack 0]
+version 14.0 v5
+push $cut_paste_input
+NoOp {
+name TrainerSplitter2
+tile_color 0xf6700bff
+gl_color 0xff
+note_font "Verdana Bold"
+note_font_color 0xffffffff
+selected true
+xpos 3748
+ypos 34
+addUserKnob {20 User}
+addUserKnob {22 SplitIt l "Create Frame Holds" t "Creates evenly spaced frame holds from your input sequence" T "import random\nimport nuke\n\ndef create_frame_holds():\n    # Get the node (NoOp) and its input\n    node = nuke.thisNode()\n    input_node = node.input(0)\n\n    if not input_node:\n        nuke.message('Please connect an input to this node.')\n        return\n\n    # User variables for customization\n    HORIZONTAL_SPACING = 400  # Spacing between nodes horizontally\n    VERTICAL_SPACING = 400    # Spacing between nodes vertically\n    BACKDROP_COLOR = 0x7171C600  # Light blue color for frame hold backdrops\n    MAIN_BACKDROP_COLOR = 0x6B6B6B00  # Gray color for main backdrop\n    SMALL_BACKDROP_PADDING = 50   # Padding for individual frame hold backdrops\n    MAIN_BACKDROP_PADDING = 100   # Padding for main backdrop\n    BACKDROP_LABEL_FONT_SIZE = 42 # Font size for main backdrop label\n    SMALL_BACKDROP_FONT_SIZE = 28 # Font size for frame hold backdrop labels\n    DOT_SPACING = 50             # Vertical spacing for dot nodes\n\n    \[rest of the Python code remains the same...]" +STARTLINE}
+addUserKnob {7 spacing_h l "Horizontal Spacing" t "Controls spacing between nodes horizontally" R 200 800}
+spacing_h 400
+addUserKnob {7 spacing_v l "Vertical Spacing" t "Controls spacing between node rows" R 200 800}
+spacing_v 400
+addUserKnob {26 ""}
+addUserKnob {26 title l "" +STARTLINE T "<b><font color='DodgerBlue'>Frame Hold Splitter v1.0</font></b>"}
+addUserKnob {26 desc l "" +STARTLINE T "Creates evenly spaced frame holds from your input sequence.\nConnect your input and click 'Create Frame Holds' to begin."}
+addUserKnob {20 info l Info}
+addUserKnob {26 creator l Creator T "<b><big>Martin Tomek"}
+addUserKnob {26 description l Description: T "Frame Hold Splitter creates evenly spaced frame holds from your input sequence.\n\nFeatures:\n• Automatically calculates frame intervals\n• Creates organized node tree with backdrops\n• Reformats output to HD 720p\n• Customizable node spacing"}
+addUserKnob {26 version l Version: T v1.0}
+addUserKnob {26 contact l Contact: T "<a href='mailto:martintomek.vfx@gmail.com'>martintomek.vfx@gmail.com</a>"}
+}
